@@ -8,31 +8,22 @@ final class AppModel: ObservableObject {
         case connected
     }
 
-    @Published var clientID: String {
-        didSet {
-#if DEBUG
-            guard !ProcessInfo.processInfo.arguments.contains("--demo") else { return }
-#endif
-            UserDefaults.standard.set(clientID, forKey: Keys.clientID)
-            if connectionState != .connecting {
-                connectionState = spotify.isAuthorized(for: clientID) ? .connected : .disconnected
-            }
-        }
-    }
-    @Published private(set) var connectionState: ConnectionState
+    @Published private(set) var connectionState: ConnectionState = .disconnected
     @Published private(set) var currentItem: PlayingItem?
     @Published private(set) var statusMessage = "Connect Spotify to get started."
     @Published private(set) var errorMessage: String?
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var isWallpaperEnabled: Bool
+    @Published private(set) var selectedSetupID: VinylSetup.ID = .albumCanvas
 
     private enum Keys {
-        static let clientID = "Vinyl.spotifyClientID"
         static let wallpaperEnabled = "Vinyl.wallpaperEnabled"
         static let hasChosenWallpaperPreference = "Vinyl.hasChosenWallpaperPreference"
+        static let selectedSetup = "Vinyl.selectedSetup"
     }
 
+    private let clientID = SpotifyConfiguration.defaultClientID
     private let spotify = SpotifyClient()
     private let wallpaper = ArtworkWallpaperController()
     private var playbackEventMonitor: SpotifyPlaybackEventMonitor?
@@ -46,13 +37,7 @@ final class AppModel: ObservableObject {
 #endif
 
     init() {
-        let savedClientID = UserDefaults.standard.string(forKey: Keys.clientID)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let storedClientID = (savedClientID?.isEmpty == false)
-            ? savedClientID!
-            : SpotifyConfiguration.defaultClientID
-        clientID = storedClientID
-        connectionState = spotify.isAuthorized(for: storedClientID) ? .connected : .disconnected
+        connectionState = spotify.isAuthorized(for: clientID) ? .connected : .disconnected
 
         if UserDefaults.standard.bool(forKey: Keys.hasChosenWallpaperPreference) {
             isWallpaperEnabled = UserDefaults.standard.bool(forKey: Keys.wallpaperEnabled)
@@ -60,8 +45,13 @@ final class AppModel: ObservableObject {
             isWallpaperEnabled = true
         }
 
+        if let savedSetup = UserDefaults.standard.string(forKey: Keys.selectedSetup),
+           let setupID = VinylSetup.ID(rawValue: savedSetup),
+           VinylSetup.catalogue.first(where: { $0.id == setupID })?.isAvailable == true {
+            selectedSetupID = setupID
+        }
+
         if isDemoMode {
-            clientID = "demo"
             connectionState = .connected
             currentItem = PlayingItem(
                 id: "demo-track",
@@ -87,8 +77,7 @@ final class AppModel: ObservableObject {
     }
 
     var canConnect: Bool {
-        !clientID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && connectionState != .connecting
+        connectionState != .connecting
     }
 
     func start() {
@@ -158,6 +147,12 @@ final class AppModel: ObservableObject {
         } else {
             wallpaper.hide()
         }
+    }
+
+    func selectSetup(_ setup: VinylSetup) {
+        guard setup.isAvailable else { return }
+        selectedSetupID = setup.id
+        UserDefaults.standard.set(setup.id.rawValue, forKey: Keys.selectedSetup)
     }
 
     private func startPolling() {

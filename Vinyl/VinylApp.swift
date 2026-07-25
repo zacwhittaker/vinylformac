@@ -12,7 +12,7 @@ struct VinylApp: App {
                     model.start()
                 }
         }
-        .defaultSize(width: 940, height: 690)
+        .defaultSize(width: 1180, height: 820)
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {

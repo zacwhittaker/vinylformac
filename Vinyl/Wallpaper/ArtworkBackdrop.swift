@@ -50,14 +50,14 @@ struct ArtworkBackdrop: View {
                         HStack(alignment: .bottom) {
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(item.title)
-                                    .font(.system(size: 17, weight: .semibold))
+                                    .font(.system(size: 17, weight: .regular))
                                 Text(item.artist)
                                     .font(.system(size: 14))
                                     .foregroundStyle(.white.opacity(0.78))
                             }
                             Spacer()
                             Label("Artwork supplied by Spotify", systemImage: "music.note")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.system(size: 12, weight: .regular))
                                 .foregroundStyle(.white.opacity(0.72))
                         }
                         .foregroundStyle(.white)
