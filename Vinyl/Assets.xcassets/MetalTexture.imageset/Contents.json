@@ -1,0 +1,13 @@
+{
+  "images" : [
+    {
+      "filename" : "metal012_color_1k.jpg",
+      "idiom" : "universal",
+      "scale" : "1x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

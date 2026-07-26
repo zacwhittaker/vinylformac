@@ -327,7 +327,14 @@ private struct SetupPreview: View {
         Group {
             switch setup.id {
             case .albumCanvas:
-                Color(white: 0.20)
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.29, green: 0.14, blue: 0.075),
+                        Color(red: 0.17, green: 0.075, blue: 0.040)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             case .classicDeck:
                 LinearGradient(
                     colors: [Color(red: 0.50, green: 0.34, blue: 0.22), Color(red: 0.13, green: 0.10, blue: 0.09)],
@@ -363,16 +370,86 @@ private struct SetupPreview: View {
     }
 
     private var albumCanvas: some View {
-        HStack(spacing: -18) {
-            previewArtwork
-                .frame(width: 112, height: 112)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .shadow(color: .black.opacity(0.40), radius: 18, y: 9)
-                .zIndex(1)
+        ZStack {
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .fill(Color(red: 0.22, green: 0.13, blue: 0.08))
+                .frame(width: 236, height: 142)
+                .overlay {
+                    Image("RosewoodTexture")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 236, height: 142)
+                        .rotationEffect(.degrees(90))
+                        .saturation(0.76)
+                        .brightness(-0.08)
+                        .clipShape(
+                            RoundedRectangle(
+                                cornerRadius: 13,
+                                style: .continuous
+                            )
+                        )
+                }
 
-            record(size: 104, labelColor: Color(red: 0.88, green: 0.47, blue: 0.35))
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.82, green: 0.81, blue: 0.77),
+                            Color(red: 0.59, green: 0.58, blue: 0.54)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 204, height: 116)
+                .offset(x: 4)
+                .shadow(color: .black.opacity(0.28), radius: 5, y: 3)
+
+            ZStack {
+                Circle()
+                    .fill(Color(white: 0.025))
+                ForEach(1..<11) { ring in
+                    Circle()
+                        .stroke(.white.opacity(0.045), lineWidth: 0.5)
+                        .padding(CGFloat(ring) * 3.9)
+                }
+                previewArtwork
+                    .frame(width: 30, height: 30)
+                    .clipShape(Circle())
+            }
+            .frame(width: 111, height: 111)
+            .offset(x: -30)
+
+            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                .fill(Color(white: 0.075))
+                .frame(width: 31, height: 108)
+                .offset(x: 85)
+
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.90, green: 0.89, blue: 0.85),
+                            Color(white: 0.40)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: 4, height: 83)
+                .rotationEffect(.degrees(25), anchor: .top)
+                .offset(x: 66, y: 5)
+
+            Circle()
+                .fill(Color(white: 0.10))
+                .frame(width: 20, height: 20)
+                .offset(x: 83, y: -45)
+
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(Color(red: 0.82, green: 0.10, blue: 0.045))
+                .frame(width: 18, height: 5)
+                .offset(x: 50, y: 49)
         }
-        .rotationEffect(.degrees(-2))
     }
 
     private var classicDeck: some View {

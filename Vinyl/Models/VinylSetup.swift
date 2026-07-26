@@ -27,7 +27,7 @@ struct VinylSetup: Identifiable, Hashable {
     static let catalogue: [VinylSetup] = [
         VinylSetup(
             id: .albumCanvas,
-            name: "Album Canvas",
+            name: "Turntable",
             description: "",
             availability: .available
         ),

@@ -6,6 +6,7 @@ import SwiftUI
 final class ArtworkWallpaperController {
     private var windows: [CGDirectDisplayID: NSWindow] = [:]
     private var currentItem: PlayingItem?
+    private var snapshotDate = Date()
     private var screenObserver: NSObjectProtocol?
 
     init() {
@@ -22,15 +23,15 @@ final class ArtworkWallpaperController {
 
     func show(_ item: PlayingItem) {
         let artworkChanged = currentItem?.artworkURL != item.artworkURL
-        let metadataChanged = currentItem?.id != item.id
-            || currentItem?.title != item.title
-            || currentItem?.artist != item.artist
-            || currentItem?.isPlaying != item.isPlaying
+        let contentChanged = currentItem != item
+        if contentChanged {
+            snapshotDate = Date()
+        }
         currentItem = item
 
         if artworkChanged || windows.count != NSScreen.screens.count {
             rebuildWindows()
-        } else if metadataChanged {
+        } else if contentChanged {
             updateWindowContent(with: item)
         }
     }
@@ -48,7 +49,10 @@ final class ArtworkWallpaperController {
             guard let displayID = screen.displayID else { continue }
             let window = DesktopArtworkWindow(screen: screen)
             let hostingView = NSHostingView(
-                rootView: ArtworkBackdrop(item: currentItem, showsMetadata: true)
+                rootView: AlbumCanvasWallpaperView(
+                    item: currentItem,
+                    snapshotDate: snapshotDate
+                )
             )
             hostingView.frame = NSRect(origin: .zero, size: screen.frame.size)
             hostingView.autoresizingMask = [.width, .height]
@@ -69,10 +73,13 @@ final class ArtworkWallpaperController {
 
     private func updateWindowContent(with item: PlayingItem) {
         for window in windows.values {
-            guard let hostingView = window.contentView as? NSHostingView<ArtworkBackdrop> else {
+            guard let hostingView = window.contentView as? NSHostingView<AlbumCanvasWallpaperView> else {
                 continue
             }
-            hostingView.rootView = ArtworkBackdrop(item: item, showsMetadata: true)
+            hostingView.rootView = AlbumCanvasWallpaperView(
+                item: item,
+                snapshotDate: snapshotDate
+            )
         }
     }
 }
