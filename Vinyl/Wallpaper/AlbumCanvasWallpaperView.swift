@@ -672,7 +672,10 @@ private struct RecordAssembly: View {
                         )
                     )
 
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !item.isPlaying)) { context in
+                SmoothRecordRotation(
+                    startingAngle: rotation(at: snapshotDate).degrees,
+                    isPlaying: item.isPlaying
+                ) {
                     ZStack {
                         RecordDust()
                             .frame(width: d * 0.96, height: d * 0.96)
@@ -683,7 +686,7 @@ private struct RecordAssembly: View {
                             .frame(width: labelD, height: labelD)
                             .offset(x: d * 0.0035, y: d * 0.0015)
                     }
-                    .rotationEffect(rotation(at: context.date))
+                    .compositingGroup()
                 }
 
                 Spindle()

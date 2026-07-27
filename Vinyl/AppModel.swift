@@ -1,15 +1,21 @@
 import Foundation
 import ServiceManagement
+import Combine
+import AppKit
 
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var currentItem: PlayingItem?
-    @Published private(set) var isSpotifyRunning = false
+    @Published private(set) var isPlayerRunning = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var isWallpaperEnabled: Bool
     @Published private(set) var selectedSetupID: VinylSetup.ID = .albumCanvas
+    let configurationStore: ConfigurationStore
+    private let defaults: UserDefaults
+    let displayManager = DisplayManager()
+    let animationCoordinator = PlaybackAnimationCoordinator()
 
     private enum Keys {
         static let wallpaperEnabled = "Vinyl.wallpaperEnabled"
@@ -17,11 +23,24 @@ final class AppModel: ObservableObject {
         static let selectedSetup = "Vinyl.selectedSetup"
     }
 
-    private let bridge = SpotifyBridge()
+    @Published private(set) var selectedPlayer: MusicPlayer = .spotify
+    private var sourceGeneration = 0
+    private let bridge: any DesktopMusicProvider
+    private let appleMusic: any DesktopMusicProvider
+    private var musicEventMonitor: SpotifyPlaybackEventMonitor?
     private let wallpaper = ArtworkWallpaperController()
     private var playbackEventMonitor: SpotifyPlaybackEventMonitor?
     private var pollingTask: Task<Void, Never>?
+    private var consecutiveStoppedReads = 0
+    private var consecutiveUnavailableReads = 0
     private var hasStarted = false
+    private var refreshTask: Task<Void, Never>?
+    private var refreshPending = false
+    private var workspaceObservers: [NSObjectProtocol] = []
+    private var sleeping = false
+    private var restoreWallpaperAfterWake = false
+    private var startupPlaybackGate = StartupPlaybackGate()
+    private var cancellables: Set<AnyCancellable> = []
 
 #if DEBUG
     private let isDemoMode = ProcessInfo.processInfo.arguments.contains("--demo")
@@ -29,21 +48,27 @@ final class AppModel: ObservableObject {
     private let isDemoMode = false
 #endif
 
-    init() {
-        if UserDefaults.standard.bool(forKey: Keys.hasChosenWallpaperPreference) {
-            isWallpaperEnabled = UserDefaults.standard.bool(forKey: Keys.wallpaperEnabled)
+    init(defaults: UserDefaults = .standard, spotify: (any DesktopMusicProvider)? = nil,
+         music: (any DesktopMusicProvider)? = nil, startAutomatically: Bool = true) {
+        self.defaults = defaults
+        configurationStore = ConfigurationStore(defaults: defaults)
+        bridge = spotify ?? SpotifyBridge()
+        appleMusic = music ?? AppleMusicBridge()
+        selectedPlayer = configurationStore.configuration.musicPlayer
+        if defaults.bool(forKey: Keys.hasChosenWallpaperPreference) {
+            isWallpaperEnabled = defaults.bool(forKey: Keys.wallpaperEnabled)
         } else {
-            isWallpaperEnabled = true
+            isWallpaperEnabled = configurationStore.configuration.startEnabled
         }
 
-        if let savedSetup = UserDefaults.standard.string(forKey: Keys.selectedSetup),
+        if let savedSetup = defaults.string(forKey: Keys.selectedSetup),
            let setupID = VinylSetup.ID(rawValue: savedSetup),
            VinylSetup.catalogue.first(where: { $0.id == setupID })?.isAvailable == true {
             selectedSetupID = setupID
         }
 
         if isDemoMode {
-            isSpotifyRunning = true
+            isPlayerRunning = true
             currentItem = PlayingItem(
                 id: "demo-track",
                 title: "Desktop Preview",
@@ -58,16 +83,48 @@ final class AppModel: ObservableObject {
         }
 
         playbackEventMonitor = SpotifyPlaybackEventMonitor { [weak self] info in
+            guard self?.selectedPlayer == .spotify else { return }
             self?.handlePlaybackNotification(info)
         }
+        musicEventMonitor = SpotifyPlaybackEventMonitor(notificationName: Notification.Name("com.apple.Music.playerInfo")) { [weak self] info in
+            guard self?.selectedPlayer == .appleMusic else { return }
+            self?.handlePlaybackNotification(info)
+        }
+        wallpaper.setPlaybackActions(PlaybackActions(
+            previous: { [weak self] in self?.sendPlaybackCommand(.previous) },
+            playPause: { [weak self] in self?.sendPlaybackCommand(.playPause) },
+            next: { [weak self] in self?.sendPlaybackCommand(.next) }
+        ))
 
-        start()
+        for display in displayManager.displays { configurationStore.ensureDisplay(display.id) }
+        configurationStore.$configuration
+            .dropFirst()
+            .sink { [weak self] configuration in
+                guard let self else { return }
+                self.wallpaper.update(configuration: configuration)
+                self.updateLaunchAtLogin(configuration.launchAtLogin)
+            }
+            .store(in: &cancellables)
+        displayManager.$displays
+            .dropFirst()
+            .sink { [weak self] displays in
+                guard let self else { return }
+                for display in displays { self.configurationStore.ensureDisplay(display.id) }
+                self.wallpaper.update(configuration: self.configurationStore.configuration)
+            }
+            .store(in: &cancellables)
+        displayManager.$identificationVisible
+            .dropFirst()
+            .sink { [weak self] visible in self?.wallpaper.setIdentificationVisible(visible) }
+            .store(in: &cancellables)
+
+        if startAutomatically { start() }
     }
 
     var statusMessage: String {
         if isDemoMode { return "Previewing the desktop artwork" }
-        if !isSpotifyRunning { return "Open Spotify to get started." }
-        if currentItem == nil { return "Play something in Spotify." }
+        if !isPlayerRunning { return "Open \(selectedPlayer.name) to get started." }
+        if currentItem == nil { return "Play something in \(selectedPlayer.name)." }
         if currentItem?.isPlaying == true { return "Playing now" }
         return "Playback paused"
     }
@@ -77,12 +134,63 @@ final class AppModel: ObservableObject {
         hasStarted = true
         if isDemoMode {
             if isWallpaperEnabled, let currentItem {
-                wallpaper.show(currentItem)
+                wallpaper.show(currentItem, configuration: configurationStore.configuration)
             }
             return
         }
-        try? SMAppService.mainApp.register()
+        updateLaunchAtLogin(configurationStore.configuration.launchAtLogin)
+        // The wallpaper is a persistent desktop object, not a playback-event
+        // notification. Put the idle turntable on every enabled display before
+        // Spotify discovery begins so launch never presents an empty desktop.
+        if isWallpaperEnabled {
+            wallpaper.show(currentItem ?? .idle, configuration: configurationStore.configuration)
+        }
+        handlePlaybackNotification(nil)
         startPolling()
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .sink { [weak self] _ in self?.refresh() }
+            .store(in: &cancellables)
+        let center = NSWorkspace.shared.notificationCenter
+        for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
+            workspaceObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] notification in
+                if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                   !["com.spotify.client", "com.apple.Music"].contains(app.bundleIdentifier ?? "") { return }
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.refresh()
+                    self.startPolling()
+                }
+            })
+        }
+        for name in [NSWorkspace.didWakeNotification, NSWorkspace.screensDidWakeNotification,
+                     NSWorkspace.sessionDidBecomeActiveNotification] {
+            workspaceObservers.append(center.addObserver(forName:name, object:nil, queue:.main) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self, self.sleeping else { return }
+                    let interruptedRefresh = self.refreshTask
+                    interruptedRefresh?.cancel()
+                    self.sleeping = false
+                    self.restoreWallpaperAfterWake = true
+                    if let interruptedRefresh { await interruptedRefresh.value }
+                    guard !self.sleeping else { return }
+                    self.refresh()
+                    self.startPolling()
+                }
+            })
+        }
+        for name in [NSWorkspace.willSleepNotification, NSWorkspace.screensDidSleepNotification,
+                     NSWorkspace.sessionDidResignActiveNotification] {
+            workspaceObservers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self else { return }
+                    self.sleeping = true
+                    self.restoreWallpaperAfterWake = false
+                    self.pollingTask?.cancel()
+                    self.refreshTask?.cancel()
+                    self.wallpaper.hide()
+                }
+            })
+        }
     }
 
     func refresh() {
@@ -90,13 +198,14 @@ final class AppModel: ObservableObject {
         handlePlaybackNotification(nil)
     }
 
-    func setWallpaperEnabled(_ enabled: Bool) {
+    func setWallpaperEnabled(_ enabled: Bool, applyImmediately: Bool = true) {
         isWallpaperEnabled = enabled
-        UserDefaults.standard.set(enabled, forKey: Keys.wallpaperEnabled)
-        UserDefaults.standard.set(true, forKey: Keys.hasChosenWallpaperPreference)
+        defaults.set(enabled, forKey: Keys.wallpaperEnabled)
+        defaults.set(true, forKey: Keys.hasChosenWallpaperPreference)
 
-        if enabled, let currentItem {
-            wallpaper.show(currentItem)
+        guard applyImmediately else { return }
+        if enabled {
+            wallpaper.show(currentItem ?? .idle, configuration: configurationStore.configuration)
         } else {
             wallpaper.hide()
         }
@@ -105,58 +214,145 @@ final class AppModel: ObservableObject {
     func selectSetup(_ setup: VinylSetup) {
         guard setup.isAvailable else { return }
         selectedSetupID = setup.id
-        UserDefaults.standard.set(setup.id.rawValue, forKey: Keys.selectedSetup)
+        defaults.set(setup.id.rawValue, forKey: Keys.selectedSetup)
     }
 
     private func handlePlaybackNotification(_ info: [AnyHashable: Any]?) {
-        Task {
-            isSpotifyRunning = bridge.isSpotifyRunning()
-            guard isSpotifyRunning else {
-                if currentItem != nil {
-                    currentItem = nil
-                    wallpaper.hide()
+        guard hasStarted, !sleeping else { return }
+        refreshPending = true
+        guard refreshTask == nil else { return }
+        refreshTask = Task {
+            isRefreshing = true
+            defer { isRefreshing = false; refreshTask = nil; startPolling() }
+            repeat {
+                refreshPending = false
+                let player = selectedPlayer
+                let generation = sourceGeneration
+                isPlayerRunning = player == .spotify ? bridge.isRunning() : appleMusic.isRunning()
+                guard isPlayerRunning else {
+                    consecutiveUnavailableReads = 0
+                    consecutiveStoppedReads = 0
+                    if currentItem != nil || restoreWallpaperAfterWake { applyItem(nil) }
+                    return
                 }
-                return
-            }
-
-            if let info, !info.isEmpty {
-                let item = await bridge.playingItem(from: info)
-                applyItem(item)
-            }
+                let result = player == .spotify ? await bridge.currentPlaybackState() : await appleMusic.currentPlaybackState()
+                guard !Task.isCancelled, !sleeping else { return }
+                // An event received during a read makes that response obsolete.
+                if refreshPending || generation != sourceGeneration { continue }
+                switch result {
+                case .item(let item):
+                    consecutiveStoppedReads = 0
+                    consecutiveUnavailableReads = 0
+                    applyItem(startupPlaybackGate.accept(item))
+                case .stopped:
+                    consecutiveUnavailableReads = 0
+                    consecutiveStoppedReads += 1
+                    if consecutiveStoppedReads >= 2 { applyItem(nil) }
+                    else {
+                        try? await Task.sleep(for: .milliseconds(350))
+                        refreshPending = true
+                    }
+                case .unavailable:
+                    consecutiveUnavailableReads = min(consecutiveUnavailableReads + 1, 4)
+                    errorMessage = "Couldn’t read \(selectedPlayer.name). Check Vinyl’s Automation access in System Settings."
+                    restoreWallpaperIfNeeded(using: currentItem)
+                }
+            } while refreshPending && !Task.isCancelled
         }
     }
 
     private func startPolling() {
         pollingTask?.cancel()
+        pollingTask = nil
+        guard !sleeping, isPlayerRunning else { return }
+        let interval: Double
+        if consecutiveUnavailableReads > 0 {
+            interval = min(30, pow(2, Double(consecutiveUnavailableReads)))
+        } else if currentItem != nil {
+            // Spotify does not reliably notify position-only seeks, including
+            // while paused. Read the authoritative position in both states.
+            interval = 0.5
+        } else if currentItem == nil && consecutiveStoppedReads < 2 {
+            interval = 2
+        } else {
+            // Paused/stopped playback has no polling task. Spotify events,
+            // activation, wake and manual refresh restart synchronization.
+            return
+        }
         pollingTask = Task {
-            while !Task.isCancelled {
-                isSpotifyRunning = bridge.isSpotifyRunning()
-                if !isSpotifyRunning {
-                    if currentItem != nil {
-                        currentItem = nil
-                        wallpaper.hide()
-                    }
-                }
-                do {
-                    try await Task.sleep(nanoseconds: 3_000_000_000)
-                } catch {
-                    return
-                }
+            do {
+                try await Task.sleep(for: .seconds(interval), tolerance: .milliseconds(100))
+                guard !Task.isCancelled else { return }
+                refresh()
+            } catch {
+                return
             }
         }
     }
 
     private func applyItem(_ item: PlayingItem?) {
+        let previousItem = currentItem
         currentItem = item
+        animationCoordinator.consume(
+            previous: previousItem,
+            current: item,
+            style: configurationStore.configuration.animations.style
+        )
         lastUpdated = Date()
         errorMessage = nil
 
+        if restoreWallpaperIfNeeded(using:item) { return }
+
         if let item {
-            if isWallpaperEnabled {
-                wallpaper.show(item)
+            if isWallpaperEnabled && !sleeping {
+                wallpaper.show(item, configuration: configurationStore.configuration)
             }
         } else {
-            wallpaper.hide()
+            if isWallpaperEnabled && !sleeping { wallpaper.show(.idle, configuration: configurationStore.configuration) }
         }
+    }
+
+    @discardableResult
+    private func restoreWallpaperIfNeeded(using item: PlayingItem?) -> Bool {
+        guard restoreWallpaperAfterWake else { return false }
+        restoreWallpaperAfterWake = false
+        if isWallpaperEnabled {
+            wallpaper.restore(item ?? .idle, configuration: configurationStore.configuration)
+        }
+        return true
+    }
+
+    func selectPlayer(_ player: MusicPlayer) {
+        guard selectedPlayer != player else { return }
+        sourceGeneration += 1
+        selectedPlayer = player
+        configurationStore.configuration.musicPlayer = player
+        startupPlaybackGate = StartupPlaybackGate()
+        consecutiveStoppedReads = 0
+        consecutiveUnavailableReads = 0
+        pollingTask?.cancel()
+        isPlayerRunning = player == .spotify ? bridge.isRunning() : appleMusic.isRunning()
+        applyItem(nil)
+        refresh()
+    }
+
+    func applyPreset(_ preset: AppearancePreset) {
+        configurationStore.configuration.globalAppearance = preset.appearance
+    }
+
+    private func sendPlaybackCommand(_ command: SpotifyBridge.Command) {
+        Task {
+            let player = selectedPlayer
+            let success = player == .spotify ? await bridge.perform(command) : await appleMusic.perform(command)
+            guard success, player == selectedPlayer else { return }
+            refresh()
+        }
+    }
+
+    private func updateLaunchAtLogin(_ enabled: Bool) {
+#if !DEBUG
+        if enabled, SMAppService.mainApp.status == .notRegistered { try? SMAppService.mainApp.register() }
+        if !enabled, SMAppService.mainApp.status == .enabled { try? SMAppService.mainApp.unregister() }
+#endif
     }
 }

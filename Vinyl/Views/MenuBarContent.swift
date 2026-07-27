@@ -6,38 +6,40 @@ struct MenuBarContent: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        Button("Show Vinyl") {
-            NSApp.setActivationPolicy(.regular)
-            openWindow(id: "main")
-            NSApp.activate(ignoringOtherApps: true)
-        }
-
-        Divider()
-
         if let item = model.currentItem {
             Text(item.title)
             Text(item.artist)
                 .foregroundStyle(.secondary)
-        } else if model.isSpotifyRunning {
+        } else if model.isPlayerRunning {
             Text("Nothing playing")
                 .foregroundStyle(.secondary)
         } else {
-            Text("Spotify not running")
+            Text("\(model.selectedPlayer.name) not running")
                 .foregroundStyle(.secondary)
         }
 
         Toggle(
-            "Artwork on Desktop",
+            "Show Vinyl on Desktop",
             isOn: Binding(
                 get: { model.isWallpaperEnabled },
                 set: { model.setWallpaperEnabled($0) }
             )
         )
 
-        Button("Refresh Now") {
-            model.refresh()
+        Divider()
+
+        Button {
+            NSApp.setActivationPolicy(.regular)
+            openWindow(id: "main")
+            NSApp.activate(ignoringOtherApps: true)
+        } label: {
+            Label("Settings…", systemImage: "gearshape")
         }
-        .disabled(model.isRefreshing)
+        .keyboardShortcut(",")
+
+        Picker("Music Player", selection: Binding(get: { model.selectedPlayer }, set: { model.selectPlayer($0) })) {
+            ForEach(MusicPlayer.allCases) { Text($0.name).tag($0) }
+        }
 
         Divider()
 

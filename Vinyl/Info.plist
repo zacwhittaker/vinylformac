@@ -30,7 +30,7 @@
 		<true/>
 	</dict>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Vinyl reads your current track from Spotify to display album artwork on your desktop.</string>
+	<string>Vinyl reads track details and artwork from your selected music player (Spotify or Apple Music) and controls playback when you use its player controls.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

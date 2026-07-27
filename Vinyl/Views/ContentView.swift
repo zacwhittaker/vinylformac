@@ -29,7 +29,7 @@ struct ContentView: View {
         }
         .frame(minWidth: 900, minHeight: 680)
         .preferredColorScheme(.dark)
-        .animation(.easeInOut(duration: 0.35), value: model.isSpotifyRunning)
+        .animation(.easeInOut(duration: 0.35), value: model.isPlayerRunning)
         .animation(.easeInOut(duration: 0.35), value: model.currentItem?.id)
     }
 
@@ -44,13 +44,13 @@ struct ContentView: View {
 
             Spacer()
 
-            if model.isSpotifyRunning {
+            if model.isPlayerRunning {
                 HStack(spacing: 10) {
                     HStack(spacing: 7) {
                         Circle()
                             .fill(Color(red: 0.20, green: 0.82, blue: 0.47))
                             .frame(width: 7, height: 7)
-                        Text("Spotify running")
+                        Text("\(model.selectedPlayer.name) running")
                     }
                     .font(.caption)
 
@@ -76,7 +76,7 @@ struct ContentView: View {
                     Circle()
                         .fill(Color(white: 0.35))
                         .frame(width: 7, height: 7)
-                    Text("Spotify not running")
+                    Text("\(model.selectedPlayer.name) not running")
                 }
                 .font(.caption)
                 .padding(.leading, 14)
@@ -101,7 +101,7 @@ struct ContentView: View {
 
     private var statusView: some View {
         HStack(spacing: 14) {
-            Image(systemName: model.isSpotifyRunning ? "music.note" : "arrow.up.right")
+            Image(systemName: model.isPlayerRunning ? "music.note" : "arrow.up.right")
                 .font(.system(size: 16, weight: .regular))
                 .foregroundStyle(.white.opacity(0.5))
 
@@ -168,16 +168,10 @@ struct ContentView: View {
     private var liveProgressBar: some View {
         if let item = model.currentItem,
            let durationMs = item.durationMilliseconds,
-           let progressMs = item.progressMilliseconds,
+           item.progressMilliseconds != nil,
            durationMs > 0 {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                let currentMs = Self.interpolatedMs(
-                    progressMs: progressMs,
-                    isPlaying: item.isPlaying,
-                    lastUpdated: model.lastUpdated,
-                    now: context.date,
-                    durationMs: durationMs
-                )
+            TimelineView(PlaybackTextSchedule(item: item)) { _ in
+                let currentMs = item.positionMilliseconds()
                 let fraction = Double(currentMs) / Double(durationMs)
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -308,9 +302,11 @@ struct ContentView: View {
             endPoint: .bottomTrailing
         )
         .overlay {
-            Image(systemName: "record.circle")
-                .font(.system(size: 28, weight: .thin))
-                .foregroundStyle(.white.opacity(0.72))
+            Image("VinylLogo")
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 38, height: 38)
+                .opacity(0.78)
         }
     }
 

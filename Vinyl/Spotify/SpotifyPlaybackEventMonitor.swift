@@ -2,18 +2,14 @@ import Foundation
 
 @MainActor
 final class SpotifyPlaybackEventMonitor {
-    private static let playbackStateChanged = Notification.Name(
-        "com.spotify.client.PlaybackStateChanged"
-    )
-
     private var observer: NSObjectProtocol?
     private var debounceTask: Task<Void, Never>?
     private let onPlaybackChange: @MainActor ([AnyHashable: Any]) -> Void
 
-    init(onPlaybackChange: @escaping @MainActor ([AnyHashable: Any]) -> Void) {
+    init(notificationName: Notification.Name = Notification.Name("com.spotify.client.PlaybackStateChanged"), onPlaybackChange: @escaping @MainActor ([AnyHashable: Any]) -> Void) {
         self.onPlaybackChange = onPlaybackChange
         observer = DistributedNotificationCenter.default().addObserver(
-            forName: Self.playbackStateChanged,
+            forName: notificationName,
             object: nil,
             queue: .main
         ) { [weak self] notification in
@@ -36,7 +32,7 @@ final class SpotifyPlaybackEventMonitor {
         let captured = info
         debounceTask = Task {
             do {
-                try await Task.sleep(nanoseconds: 250_000_000)
+                try await Task.sleep(nanoseconds: 40_000_000)
             } catch {
                 return
             }
