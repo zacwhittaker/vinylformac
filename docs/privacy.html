@@ -1,0 +1,65 @@
+<title>Vinyl — Privacy Policy</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+  :root {
+    --bg: #0B0908;
+    --text: #E4DDD4;
+    --text-dim: #7A6F63;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 60px 24px 80px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .updated {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 40px;
+  }
+  h2 {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 32px 0 8px;
+  }
+  p {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+  a { color: var(--text); }
+</style>
+
+<div class="page">
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: July 27, 2026</p>
+
+  <h2>What Vinyl accesses</h2>
+  <p>Vinyl connects to the Spotify Web API using the <code>user-read-currently-playing</code> scope. This gives it read-only access to the track or episode you are currently playing — specifically the title, artist, album name, album artwork URL, and playback progress.</p>
+
+  <h2>What Vinyl stores</h2>
+  <p>Your Spotify OAuth tokens (access token and refresh token) are stored locally in your Mac's Keychain. Your wallpaper preference (on/off) is stored in local UserDefaults. No data is stored on any server.</p>
+
+  <h2>What Vinyl sends</h2>
+  <p>Vinyl communicates only with Spotify's servers (accounts.spotify.com and api.spotify.com) to authenticate and fetch your currently playing track. It does not send data to any other server, does not include analytics or telemetry, and does not collect or transmit any personal information.</p>
+
+  <h2>No tracking</h2>
+  <p>Vinyl does not track you. There are no analytics, no crash reporters, no ad networks, no third-party SDKs.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy can be directed to <a href="https://github.com/shhivv/vinylformac/issues">the GitHub repository</a>.</p>
+</div>
