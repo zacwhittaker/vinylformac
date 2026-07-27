@@ -8,6 +8,9 @@ final class ArtworkWallpaperController {
     private var currentItem: PlayingItem?
     private var snapshotDate = Date()
     private var screenObserver: NSObjectProtocol?
+    private var configuration = AppConfiguration()
+    private var identificationVisible = false
+    private var playbackActions = PlaybackActions()
 
     init() {
         screenObserver = NotificationCenter.default.addObserver(
@@ -21,19 +24,36 @@ final class ArtworkWallpaperController {
         }
     }
 
-    func show(_ item: PlayingItem) {
+    func setPlaybackActions(_ actions: PlaybackActions) {
+        playbackActions = actions
+        rebuildWindows()
+    }
+
+    func show(_ item: PlayingItem, configuration: AppConfiguration) {
         let artworkChanged = currentItem?.artworkURL != item.artworkURL
         let contentChanged = currentItem != item
         if contentChanged {
             snapshotDate = Date()
         }
         currentItem = item
+        let configurationChanged = self.configuration != configuration
+        self.configuration = configuration
 
-        if artworkChanged || windows.count != NSScreen.screens.count {
+        if artworkChanged || configurationChanged || windows.count != enabledScreens.count {
             rebuildWindows()
         } else if contentChanged {
             updateWindowContent(with: item)
         }
+    }
+
+    func update(configuration: AppConfiguration) {
+        self.configuration = configuration
+        rebuildWindows()
+    }
+
+    func setIdentificationVisible(_ visible: Bool) {
+        identificationVisible = visible
+        rebuildWindows()
     }
 
     func hide() {
@@ -45,19 +65,27 @@ final class ArtworkWallpaperController {
         closeWindows()
         guard let currentItem else { return }
 
-        for screen in NSScreen.screens {
+        for (index, screen) in enabledScreens.enumerated() {
             guard let displayID = screen.displayID else { continue }
             let window = DesktopArtworkWindow(screen: screen)
             let hostingView = NSHostingView(
-                rootView: AlbumCanvasWallpaperView(
+                rootView: AnyView(ModernWallpaperView(
                     item: currentItem,
-                    snapshotDate: snapshotDate
-                )
+                    snapshotDate: snapshotDate,
+                    appearance: configuration.appearance(for: String(displayID)),
+                    animation: configuration.animations,
+                    playbackActions: playbackActions,
+                    sceneExposure: configuration.sceneExposure(for: String(displayID)),
+                    displayName: screen.localizedName,
+                    identificationNumber: identificationVisible ? index + 1 : nil
+                ).environment(\.displayRefreshRate, Double(screen.maximumFramesPerSecond)))
             )
             hostingView.frame = NSRect(origin: .zero, size: screen.frame.size)
             hostingView.autoresizingMask = [.width, .height]
+            hostingView.layerContentsRedrawPolicy = .onSetNeedsDisplay
             window.contentView = hostingView
             window.setFrame(screen.frame, display: true)
+            window.contentView?.frame = window.contentLayoutRect
             window.orderFrontRegardless()
             windows[displayID] = window
         }
@@ -72,14 +100,27 @@ final class ArtworkWallpaperController {
     }
 
     private func updateWindowContent(with item: PlayingItem) {
-        for window in windows.values {
-            guard let hostingView = window.contentView as? NSHostingView<AlbumCanvasWallpaperView> else {
+        for (displayID, window) in windows {
+            guard let hostingView = window.contentView as? NSHostingView<AnyView> else {
                 continue
             }
-            hostingView.rootView = AlbumCanvasWallpaperView(
+            let refreshRate = window.screen.map { Double($0.maximumFramesPerSecond) } ?? 60
+            hostingView.rootView = AnyView(ModernWallpaperView(
                 item: item,
-                snapshotDate: snapshotDate
-            )
+                snapshotDate: snapshotDate,
+                appearance: configuration.appearance(for: String(displayID)),
+                animation: configuration.animations,
+                playbackActions: playbackActions,
+                sceneExposure: configuration.sceneExposure(for: String(displayID))
+            ).environment(\.displayRefreshRate, refreshRate))
+        }
+    }
+
+
+    private var enabledScreens: [NSScreen] {
+        NSScreen.screens.filter { screen in
+            guard let displayID = screen.displayID else { return false }
+            return configuration.isEnabled(displayID: String(displayID))
         }
     }
 }
@@ -102,8 +143,11 @@ private final class DesktopArtworkWindow: NSWindow {
         ]
         isOpaque = true
         backgroundColor = .black
+        colorSpace = .sRGB
         hasShadow = false
-        ignoresMouseEvents = true
+        // SwiftUI's own hit-testing keeps the visual surface passive while
+        // allowing the now-playing transport buttons to receive clicks.
+        ignoresMouseEvents = false
         isMovable = false
         isReleasedWhenClosed = false
         animationBehavior = .none

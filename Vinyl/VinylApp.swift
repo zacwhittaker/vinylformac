@@ -14,13 +14,13 @@ struct VinylApp: App {
 
     var body: some Scene {
         Window("Vinyl", id: "main") {
-            ContentView()
+            SettingsRootView()
                 .environmentObject(model)
                 .onAppear {
                     model.start()
                 }
         }
-        .defaultSize(width: 1180, height: 820)
+        .defaultSize(width: 1120, height: 820)
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {

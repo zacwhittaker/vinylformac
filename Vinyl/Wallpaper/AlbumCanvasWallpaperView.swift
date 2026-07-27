@@ -654,6 +654,7 @@ private struct Platter: View {
 private struct RecordAssembly: View {
     let item: PlayingItem
     let snapshotDate: Date
+    @Environment(\.displayRefreshRate) private var displayRefreshRate
 
     var body: some View {
         GeometryReader { proxy in
@@ -672,7 +673,7 @@ private struct RecordAssembly: View {
                         )
                     )
 
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !item.isPlaying)) { context in
+                TimelineView(.animation(minimumInterval: 1 / max(displayRefreshRate, 1), paused: !item.isPlaying)) { context in
                     ZStack {
                         RecordDust()
                             .frame(width: d * 0.96, height: d * 0.96)

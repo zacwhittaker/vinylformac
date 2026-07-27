@@ -19,6 +19,24 @@ final class SpotifyBridge {
         }
     }
 
+    enum Command { case previous, playPause, next }
+
+    /// Uses Spotify's public AppleScript dictionary. Keeping commands behind this
+    /// bridge means another playback provider can supply the same actions later.
+    @discardableResult
+    func perform(_ command: Command) -> Bool {
+        guard isSpotifyRunning() else { return false }
+        let verb = switch command {
+        case .previous: "previous track"
+        case .playPause: "playpause"
+        case .next: "next track"
+        }
+        var error: NSDictionary?
+        NSAppleScript(source: "tell application \"Spotify\" to \(verb)")?
+            .executeAndReturnError(&error)
+        return error == nil
+    }
+
     func playingItem(from userInfo: [AnyHashable: Any]) async -> PlayingItem? {
         let playerState = userInfo["Player State"] as? String ?? ""
         guard playerState != "Stopped" else { return nil }
@@ -44,6 +62,35 @@ final class SpotifyBridge {
             isPlaying: isPlaying,
             progressMilliseconds: Int(position * 1000),
             durationMilliseconds: duration
+        )
+    }
+
+    /// Reads the current player state directly so launch does not depend on a
+    /// future distributed notification from Spotify.
+    func currentPlayingItem() async -> PlayingItem? {
+        guard isSpotifyRunning() else { return nil }
+        let separator = "\u{1F}"
+        let script = """
+        tell application "Spotify"
+            set stateText to (player state as text)
+            if stateText is "stopped" then return stateText
+            set activeTrack to current track
+            return stateText & "(separator)" & (name of activeTrack) & "(separator)" & (artist of activeTrack) & "(separator)" & (album of activeTrack) & "(separator)" & (spotify url of activeTrack) & "(separator)" & (duration of activeTrack as text) & "(separator)" & (player position as text)
+        end tell
+        """
+        var error:NSDictionary?
+        guard let result=NSAppleScript(source:script)?.executeAndReturnError(&error).stringValue,
+              error == nil else { return nil }
+        let values=result.components(separatedBy:separator)
+        guard values.count >= 7,values[0].lowercased() != "stopped" else { return nil }
+        let trackID=values[4]
+        return PlayingItem(
+            id:trackID.isEmpty ? "spotify-current-\(values[1])-\(values[2])":trackID,
+            title:values[1],artist:values[2],collection:values[3],
+            artworkURL:await fetchArtworkURL(trackID:trackID),spotifyURL:Self.webURL(from:trackID),
+            isPlaying:values[0].lowercased() == "playing",
+            progressMilliseconds:Int((Double(values[6]) ?? 0)*1000),
+            durationMilliseconds:Int(values[5])
         )
     }
 

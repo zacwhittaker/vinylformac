@@ -25,6 +25,24 @@ static inline float ringGauss(float rn, float center, float width) {
     return exp(-x * x);
 }
 
+// Display calibration in linear light. Positive exposure adds most energy to
+// dark midtones, tapers to zero at white, and preserves the deepest occlusion.
+// Negative values gently compress the scene for bright/low-contrast panels.
+[[ stitchable ]] half4 sceneExposure(float2 position, half4 color,
+                                     float exposure) {
+    float3 rgb = float3(color.rgb);
+    float luminance = dot(rgb, float3(0.2126, 0.7152, 0.0722));
+    if (exposure >= 0.0) {
+        float shadowFloor = smoothstep(0.002, 0.035, luminance);
+        float highlightProtection = pow(1.0 - clamp(luminance, 0.0, 1.0), 2.4);
+        rgb += exposure * 0.22 * shadowFloor * highlightProtection;
+    } else {
+        float compression = 1.0 + exposure * 0.42;
+        rgb *= mix(compression, 1.0, smoothstep(0.45, 1.0, luminance));
+    }
+    return half4(half3(clamp(rgb, 0.0, 1.0)), color.a);
+}
+
 // Vinyl record surface -------------------------------------------------------
 //
 // The disc is rotationally symmetric (concentric grooves), so the whole
@@ -65,12 +83,13 @@ static inline float ringGauss(float rn, float center, float width) {
     float grooveAmp = inGroove * mix(1.0, 0.30, sep);
 
     // Concentric micro-groove modulation at two scales to avoid moiré.
-    float g1 = vnoise(float2(r * 0.70, 3.7)) - 0.5;
-    float g2 = vnoise(float2(r * 0.22, 9.1)) - 0.5;
-    float grooves = g1 * 0.6 + g2;
+    float fineRings = sin(r * 8.6) * 0.40 + sin(r * 13.7) * 0.16;
+    float g1 = vnoise(float2(r * 0.82, 3.7)) - 0.5;
+    float g2 = vnoise(float2(r * 0.25, 9.1)) - 0.5;
+    float grooves = fineRings * 0.40 + g1 * 0.40 + g2 * 0.26;
 
-    float base = 0.052
-               + grooveAmp * grooves * 0.022
+    float base = 0.068
+               + grooveAmp * grooves * 0.010
                - sep * inGroove * 0.012;
 
     // Anisotropic sheen: two lobes where the groove tangent is
@@ -79,19 +98,18 @@ static inline float ringGauss(float rn, float center, float width) {
     float lobes = ca * ca;
     float env = smoothstep(labelR, 0.46, rn) * (1.0 - smoothstep(0.965, 1.0, rn));
 
-    float sheen = (pow(lobes, 2.0) * 0.045
-                 + pow(lobes, 5.0) * 0.26
-                 + pow(lobes, 32.0) * 0.32)
+    float sheen = (pow(lobes, 18.0) * 0.025
+                 + pow(lobes, 54.0) * 0.050)
                 * env * (0.30 + 0.70 * grooveAmp);
 
     // Smooth lead-in / dead-wax areas reflect a narrower, more mirror-like band.
     float smoothArea = (1.0 - inGroove) * step(labelR, rn);
-    sheen += pow(lobes, 80.0) * 0.18 * smoothArea * env;
+    sheen += pow(lobes, 96.0) * 0.038 * smoothArea * env;
 
     // Micro sparkle inside the lit lobes.
     float ang = atan2(d.y, d.x);
     float sp = hash21(float2(floor(r * 1.5), floor(ang * 520.0)));
-    float sparkle = step(0.997, sp) * pow(lobes, 4.0) * grooveAmp * 0.34;
+    float sparkle = step(0.9985, sp) * pow(lobes, 4.0) * grooveAmp * 0.10;
 
     // Edge bevel: darkens overall, catches light on the side facing the lamp.
     float bevel = smoothstep(edgeStart, 1.0, rn);
@@ -131,7 +149,7 @@ static inline float ringGauss(float rn, float center, float width) {
 
     // Rubber mat body.
     float ribs = sin(r * 1.35) * 0.5 + 0.5;
-    float mat = 0.085
+    float mat = 0.105
               + (vnoise(float2(r * 0.8, 4.2)) - 0.5) * 0.018
               + ribs * 0.020 * smoothstep(0.15, 0.3, rn)
               + pow(lobes, 4.0) * 0.045; // dull rubber sheen
@@ -155,11 +173,18 @@ static inline float ringGauss(float rn, float center, float width) {
 
 [[ stitchable ]] half4 brushedMetal(float2 position, half4 color,
                                     float2 size, float seed) {
-    float streak = (vnoise(float2(position.y * 1.4 + seed * 17.0,
-                                  position.x * 0.012)) - 0.5) * 0.22;
-    float fine   = (vnoise(float2(position.y * 6.0 + seed * 31.0,
-                                  position.x * 0.030)) - 0.5) * 0.05;
-    float g = 0.5 + streak + fine;
+    float2 uv = position / max(size, float2(1.0));
+    bool frontFacing = seed > 25.0;
+    float2 grainPosition = frontFacing ? float2(position.x * 0.72, position.y * 0.055)
+                                       : float2(position.y * 2.35, position.x * 0.022);
+    float micro = (hash21(float2(grainPosition.x * 2.15, floor(grainPosition.y * 8.0) + seed)) - 0.5) * (frontFacing ? 0.066 : 0.070);
+    float small = (vnoise(grainPosition + float2(seed * 17.0, 0.0)) - 0.5) * (frontFacing ? 0.17 : 0.145);
+    float medium = (vnoise(float2(uv.x * 9.0 + seed, uv.y * 3.2)) - 0.5) * (frontFacing ? 0.105 : 0.085);
+    // Local contrast follows the product-photo light rig: the warm left key
+    // reveals the brush most strongly while neutral fill preserves the right.
+    float grazing = frontFacing ? (0.72 + 0.28 * (1.0 - uv.x))
+                                : (0.56 + 0.78 * pow(1.0 - uv.x, 1.55));
+    float g = 0.5 + (micro + small + medium) * grazing;
     return half4(half3(g), 1.0);
 }
 

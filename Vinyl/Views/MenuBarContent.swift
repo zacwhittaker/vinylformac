@@ -27,12 +27,33 @@ struct MenuBarContent: View {
         }
 
         Toggle(
-            "Artwork on Desktop",
+            "Vinyl Enabled",
             isOn: Binding(
                 get: { model.isWallpaperEnabled },
                 set: { model.setWallpaperEnabled($0) }
             )
         )
+
+        Menu("Preset") {
+            ForEach(model.configurationStore.presets) { preset in
+                Button(preset.name) { model.applyPreset(preset) }
+            }
+        }
+
+        Menu("Displays") {
+            ForEach(model.displayManager.displays) { display in
+                Toggle(
+                    display.name,
+                    isOn: Binding(
+                        get: { model.configurationStore.configuration.isEnabled(displayID: display.id) },
+                        set: { enabled in
+                            model.configurationStore.ensureDisplay(display.id)
+                            model.configurationStore.configuration.displayConfigurations[display.id]?.enabled = enabled
+                        }
+                    )
+                )
+            }
+        }
 
         Button("Refresh Now") {
             model.refresh()

@@ -15,22 +15,36 @@ enum WallpaperSnapshot {
             return
         }
         let path = args[flagIndex + 1]
-        let size = NSScreen.main?.frame.size ?? CGSize(width: 1512, height: 982)
+        let environment = ProcessInfo.processInfo.environment
+        let requestedWidth = environment["VINYL_SNAPSHOT_WIDTH"].flatMap(Double.init)
+        let requestedHeight = environment["VINYL_SNAPSHOT_HEIGHT"].flatMap(Double.init)
+        let sceneExposure = environment["VINYL_SNAPSHOT_EXPOSURE"].flatMap(Double.init) ?? 0
+        let size = if let requestedWidth, let requestedHeight {
+            CGSize(width: requestedWidth, height: requestedHeight)
+        } else {
+            NSScreen.main?.frame.size ?? CGSize(width: 1512, height: 982)
+        }
 
-        let item = PlayingItem(
+        let item = environment["VINYL_SNAPSHOT_IDLE"] == "1" ? PlayingItem.idle : PlayingItem(
             id: "snapshot",
-            title: "Snapshot",
-            artist: "Vinyl",
-            collection: nil,
+            title: environment["VINYL_SNAPSHOT_TITLE"] ?? "Lost in the Fire (feat. The Weeknd)",
+            artist: environment["VINYL_SNAPSHOT_ARTIST"] ?? "Gesaffelstein",
+            collection: environment["VINYL_SNAPSHOT_COLLECTION"] ?? "Hyperion",
             artworkURL: nil,
             spotifyURL: nil,
-            isPlaying: false,
+            isPlaying: true,
             progressMilliseconds: 74_000,
             durationMilliseconds: 208_000
         )
 
         let renderer = ImageRenderer(
-            content: AlbumCanvasWallpaperView(item: item, snapshotDate: Date())
+            content: ModernWallpaperView(
+                item: item,
+                snapshotDate: Date(),
+                appearance: AppearanceConfiguration(theme: .midnight, background: .pureBlack),
+                animation: AnimationConfiguration(),
+                sceneExposure: sceneExposure
+            )
                 .frame(width: size.width, height: size.height)
         )
         renderer.scale = 2

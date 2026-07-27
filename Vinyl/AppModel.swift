@@ -1,5 +1,6 @@
 import Foundation
 import ServiceManagement
+import Combine
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -10,6 +11,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var isWallpaperEnabled: Bool
     @Published private(set) var selectedSetupID: VinylSetup.ID = .albumCanvas
+    let configurationStore = ConfigurationStore()
+    let displayManager = DisplayManager()
+    let animationCoordinator = PlaybackAnimationCoordinator()
 
     private enum Keys {
         static let wallpaperEnabled = "Vinyl.wallpaperEnabled"
@@ -22,6 +26,7 @@ final class AppModel: ObservableObject {
     private var playbackEventMonitor: SpotifyPlaybackEventMonitor?
     private var pollingTask: Task<Void, Never>?
     private var hasStarted = false
+    private var cancellables: Set<AnyCancellable> = []
 
 #if DEBUG
     private let isDemoMode = ProcessInfo.processInfo.arguments.contains("--demo")
@@ -33,7 +38,7 @@ final class AppModel: ObservableObject {
         if UserDefaults.standard.bool(forKey: Keys.hasChosenWallpaperPreference) {
             isWallpaperEnabled = UserDefaults.standard.bool(forKey: Keys.wallpaperEnabled)
         } else {
-            isWallpaperEnabled = true
+            isWallpaperEnabled = configurationStore.configuration.startEnabled
         }
 
         if let savedSetup = UserDefaults.standard.string(forKey: Keys.selectedSetup),
@@ -60,6 +65,33 @@ final class AppModel: ObservableObject {
         playbackEventMonitor = SpotifyPlaybackEventMonitor { [weak self] info in
             self?.handlePlaybackNotification(info)
         }
+        wallpaper.setPlaybackActions(PlaybackActions(
+            previous: { [weak self] in self?.sendPlaybackCommand(.previous) },
+            playPause: { [weak self] in self?.sendPlaybackCommand(.playPause) },
+            next: { [weak self] in self?.sendPlaybackCommand(.next) }
+        ))
+
+        for display in displayManager.displays { configurationStore.ensureDisplay(display.id) }
+        configurationStore.$configuration
+            .dropFirst()
+            .sink { [weak self] configuration in
+                guard let self else { return }
+                self.wallpaper.update(configuration: configuration)
+                self.updateLaunchAtLogin(configuration.launchAtLogin)
+            }
+            .store(in: &cancellables)
+        displayManager.$displays
+            .dropFirst()
+            .sink { [weak self] displays in
+                guard let self else { return }
+                for display in displays { self.configurationStore.ensureDisplay(display.id) }
+                self.wallpaper.update(configuration: self.configurationStore.configuration)
+            }
+            .store(in: &cancellables)
+        displayManager.$identificationVisible
+            .dropFirst()
+            .sink { [weak self] visible in self?.wallpaper.setIdentificationVisible(visible) }
+            .store(in: &cancellables)
 
         start()
     }
@@ -77,11 +109,18 @@ final class AppModel: ObservableObject {
         hasStarted = true
         if isDemoMode {
             if isWallpaperEnabled, let currentItem {
-                wallpaper.show(currentItem)
+                wallpaper.show(currentItem, configuration: configurationStore.configuration)
             }
             return
         }
-        try? SMAppService.mainApp.register()
+        updateLaunchAtLogin(configurationStore.configuration.launchAtLogin)
+        // The wallpaper is a persistent desktop object, not a playback-event
+        // notification. Put the idle turntable on every enabled display before
+        // Spotify discovery begins so launch never presents an empty desktop.
+        if isWallpaperEnabled {
+            wallpaper.show(currentItem ?? .idle, configuration: configurationStore.configuration)
+        }
+        handlePlaybackNotification(nil)
         startPolling()
     }
 
@@ -95,8 +134,8 @@ final class AppModel: ObservableObject {
         UserDefaults.standard.set(enabled, forKey: Keys.wallpaperEnabled)
         UserDefaults.standard.set(true, forKey: Keys.hasChosenWallpaperPreference)
 
-        if enabled, let currentItem {
-            wallpaper.show(currentItem)
+        if enabled {
+            wallpaper.show(currentItem ?? .idle, configuration: configurationStore.configuration)
         } else {
             wallpaper.hide()
         }
@@ -114,14 +153,16 @@ final class AppModel: ObservableObject {
             guard isSpotifyRunning else {
                 if currentItem != nil {
                     currentItem = nil
-                    wallpaper.hide()
                 }
+                if isWallpaperEnabled { wallpaper.show(.idle, configuration: configurationStore.configuration) }
                 return
             }
 
             if let info, !info.isEmpty {
                 let item = await bridge.playingItem(from: info)
                 applyItem(item)
+            } else {
+                applyItem(await bridge.currentPlayingItem())
             }
         }
     }
@@ -134,11 +175,13 @@ final class AppModel: ObservableObject {
                 if !isSpotifyRunning {
                     if currentItem != nil {
                         currentItem = nil
-                        wallpaper.hide()
                     }
+                    if isWallpaperEnabled { wallpaper.show(.idle, configuration: configurationStore.configuration) }
+                } else if currentItem == nil || currentItem?.isPlaying == true {
+                    applyItem(await bridge.currentPlayingItem())
                 }
                 do {
-                    try await Task.sleep(nanoseconds: 3_000_000_000)
+                    try await Task.sleep(nanoseconds: 5_000_000_000)
                 } catch {
                     return
                 }
@@ -147,16 +190,41 @@ final class AppModel: ObservableObject {
     }
 
     private func applyItem(_ item: PlayingItem?) {
+        let previousItem = currentItem
         currentItem = item
+        animationCoordinator.consume(
+            previous: previousItem,
+            current: item,
+            style: configurationStore.configuration.animations.style
+        )
         lastUpdated = Date()
         errorMessage = nil
 
         if let item {
             if isWallpaperEnabled {
-                wallpaper.show(item)
+                wallpaper.show(item, configuration: configurationStore.configuration)
             }
         } else {
-            wallpaper.hide()
+            if isWallpaperEnabled { wallpaper.show(.idle, configuration: configurationStore.configuration) }
         }
+    }
+
+    func applyPreset(_ preset: AppearancePreset) {
+        configurationStore.configuration.globalAppearance = preset.appearance
+    }
+
+    private func sendPlaybackCommand(_ command: SpotifyBridge.Command) {
+        guard bridge.perform(command) else { return }
+        Task {
+            try? await Task.sleep(nanoseconds: 180_000_000)
+            refresh()
+        }
+    }
+
+    private func updateLaunchAtLogin(_ enabled: Bool) {
+#if !DEBUG
+        if enabled, SMAppService.mainApp.status == .notRegistered { try? SMAppService.mainApp.register() }
+        if !enabled, SMAppService.mainApp.status == .enabled { try? SMAppService.mainApp.unregister() }
+#endif
     }
 }
