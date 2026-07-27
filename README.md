@@ -28,10 +28,8 @@ Vinyl does not need Spotify developer credentials or an account connection.
 
 ## Distribution reality
 
-GitHub release builds are currently ad-hoc signed. On first launch, right-click
-Vinyl and choose **Open** to approve it in Gatekeeper. A Developer ID
-certificate and Apple notarization are still required for a warning-free
-direct-download experience.
+GitHub release builds are signed with a Developer ID certificate and notarized
+by Apple for a normal, warning-free direct-download experience.
 
 Before wider distribution, confirm that the desktop presentation satisfies
 Spotify's current attribution and artwork requirements.
