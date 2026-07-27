@@ -14,13 +14,13 @@ struct VinylApp: App {
 
     var body: some Scene {
         Window("Vinyl", id: "main") {
-            ContentView()
+            SettingsRootView()
                 .environmentObject(model)
                 .onAppear {
                     model.start()
                 }
         }
-        .defaultSize(width: 1180, height: 820)
+        .defaultSize(width: 1120, height: 820)
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(replacing: .newItem) {
@@ -49,9 +49,32 @@ struct VinylApp: App {
 
 final class VinylAppDelegate: NSObject, NSApplicationDelegate {
     private var windowCloseObserver: NSObjectProtocol?
+    private var instanceObserver: NSObjectProtocol?
     private static let hasLaunchedKey = "Vinyl.hasLaunchedBefore"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Xcode and Finder can launch different builds of the same app. Keep
+        // only the newest instance so desktop windows and playback work don't
+        // accumulate behind one another.
+        let current = NSRunningApplication.current
+        let instanceName = Notification.Name("me.shivs.vinyl.instanceStarted")
+        let instanceID = String(current.processIdentifier)
+        // Sandboxed instances cannot always terminate one another through
+        // NSRunningApplication. Each cooperating instance closes itself instead.
+        DistributedNotificationCenter.default().postNotificationName(instanceName, object: instanceID,
+                                                      userInfo: nil, deliverImmediately: true)
+        instanceObserver = DistributedNotificationCenter.default().addObserver(
+            forName: instanceName, object: nil, queue: .main
+        ) { notification in
+            guard let sender = notification.object as? String, sender != instanceID else { return }
+            NSApplication.shared.terminate(nil)
+        }
+        if let bundleID = current.bundleIdentifier {
+            for other in NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+                where other.processIdentifier != current.processIdentifier {
+                other.terminate()
+            }
+        }
         let hasLaunched = UserDefaults.standard.bool(forKey: Self.hasLaunchedKey)
 
         if hasLaunched {

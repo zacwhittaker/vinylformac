@@ -168,16 +168,10 @@ struct ContentView: View {
     private var liveProgressBar: some View {
         if let item = model.currentItem,
            let durationMs = item.durationMilliseconds,
-           let progressMs = item.progressMilliseconds,
+           item.progressMilliseconds != nil,
            durationMs > 0 {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                let currentMs = Self.interpolatedMs(
-                    progressMs: progressMs,
-                    isPlaying: item.isPlaying,
-                    lastUpdated: model.lastUpdated,
-                    now: context.date,
-                    durationMs: durationMs
-                )
+            TimelineView(PlaybackTextSchedule(item: item)) { _ in
+                let currentMs = item.positionMilliseconds()
                 let fraction = Double(currentMs) / Double(durationMs)
 
                 VStack(alignment: .leading, spacing: 3) {

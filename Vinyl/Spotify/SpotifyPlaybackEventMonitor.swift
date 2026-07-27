@@ -36,7 +36,7 @@ final class SpotifyPlaybackEventMonitor {
         let captured = info
         debounceTask = Task {
             do {
-                try await Task.sleep(nanoseconds: 250_000_000)
+                try await Task.sleep(nanoseconds: 40_000_000)
             } catch {
                 return
             }

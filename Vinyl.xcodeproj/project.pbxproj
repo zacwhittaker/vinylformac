@@ -311,20 +311,20 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		70A10000000000000000000B /* Build configuration list for PBXProject "Vinyl" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				70A10000000000000000000C /* Debug */,
-				70A10000000000000000000D /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		70A100000000000000000007 /* Build configuration list for PBXNativeTarget "Vinyl" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				70A10000000000000000000E /* Debug */,
 				70A10000000000000000000F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		70A10000000000000000000B /* Build configuration list for PBXProject "Vinyl" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				70A10000000000000000000C /* Debug */,
+				70A10000000000000000000D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

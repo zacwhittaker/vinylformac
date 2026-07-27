@@ -15,7 +15,8 @@ struct SpotifyArtworkLookupSmoke {
             "Playback Position": 0.0
         ])
 
-        guard let artworkURL = item?.artworkURL,
+        guard let trackID = item?.id,
+              let artworkURL = await bridge.fetchArtworkURL(trackID: trackID),
               artworkURL.host == "i.scdn.co" else {
             throw SmokeError.artworkURLMissing
         }
