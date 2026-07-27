@@ -1,80 +1,180 @@
 import SwiftUI
 
+// MARK: - Global light rig
+//
+// Every highlight, gradient, and shadow in the scene derives from this single
+// key light so the composition reads as one photographed moment instead of a
+// collection of independently shaded shapes.
+
+enum SceneLight {
+    /// Unit vector pointing from a surface toward the key light
+    /// (screen coordinates, y grows downward). Warm lamp, upper left.
+    static let direction = CGVector(dx: -0.5547, dy: -0.8321)
+
+    /// Offset for a shadow cast by an object `distance` above the surface
+    /// beneath it: opposite the light direction.
+    static func shadowOffset(_ distance: CGFloat) -> CGSize {
+        CGSize(width: -direction.dx * distance, height: -direction.dy * distance)
+    }
+
+    static var shaderDirection: Shader.Argument {
+        .float2(direction.dx, direction.dy)
+    }
+}
+
+// MARK: - Scene
+
 struct AlbumCanvasWallpaperView: View {
     let item: PlayingItem
     let snapshotDate: Date
 
     var body: some View {
         GeometryReader { proxy in
-            let deckHeight = min(proxy.size.height * 0.79, proxy.size.width * 0.63)
-            let deckWidth = deckHeight * 1.22
+            let w = proxy.size.width
+            let h = proxy.size.height
+            let unit = min(h, w / 1.55)
+            let deckH = unit * 0.64
+            let deckW = deckH * 1.32
+            let deckCenter = CGPoint(x: w * 0.655, y: h * 0.515)
+            let sleeveSide = deckH * 0.82
+            let sleeveCenter = CGPoint(
+                x: deckCenter.x - deckW / 2 - sleeveSide * 0.50,
+                y: h * 0.555
+            )
 
             ZStack {
-                AgedWoodSurface()
+                TableSurface()
 
-                TurntableDeck(
-                    item: item,
-                    snapshotDate: snapshotDate
+                FlatSleeve(artworkURL: item.artworkURL)
+                    .frame(width: sleeveSide, height: sleeveSide)
+                    .rotationEffect(.degrees(-3.6))
+                    .position(sleeveCenter)
+
+                TurntableDeck(item: item, snapshotDate: snapshotDate)
+                    .frame(width: deckW, height: deckH)
+                    .rotationEffect(.degrees(-0.35))
+                    .position(deckCenter)
+
+                // One lamp lights the whole tabletop: a warm wash that falls
+                // across deck, sleeve, and wood together.
+                RadialGradient(
+                    stops: [
+                        .init(color: Color(red: 1.0, green: 0.86, blue: 0.64).opacity(0.10), location: 0),
+                        .init(color: Color(red: 1.0, green: 0.88, blue: 0.70).opacity(0.035), location: 0.5),
+                        .init(color: .clear, location: 0.9)
+                    ],
+                    center: UnitPoint(x: 0.18, y: 0.18),
+                    startRadius: 0,
+                    endRadius: max(w, h) * 0.95
                 )
-                .frame(width: deckWidth, height: deckHeight)
-                .rotationEffect(.degrees(-0.18))
-                .offset(y: proxy.size.height * 0.01)
-                .shadow(color: .black.opacity(0.44), radius: 24, y: 16)
-                .zIndex(2)
+                .blendMode(.screen)
+                .allowsHitTesting(false)
 
-                AmbientWindowLight()
-                    .zIndex(3)
+                // Photographic finish: warmth, vignette, grain.
+                Color(red: 1.0, green: 0.84, blue: 0.62)
+                    .opacity(0.06)
+                    .blendMode(.softLight)
+                    .allowsHitTesting(false)
 
                 RadialGradient(
-                    colors: [.clear, .black.opacity(0.30)],
-                    center: .center,
-                    startRadius: min(proxy.size.width, proxy.size.height) * 0.33,
-                    endRadius: max(proxy.size.width, proxy.size.height) * 0.78
+                    colors: [.clear, .black.opacity(0.42)],
+                    center: UnitPoint(x: 0.48, y: 0.44),
+                    startRadius: min(w, h) * 0.34,
+                    endRadius: max(w, h) * 0.80
                 )
                 .allowsHitTesting(false)
-                .zIndex(4)
+
+                SurfaceGrain(intensity: 0.07, seed: 11)
+                    .allowsHitTesting(false)
+
+                // macOS brightens and blurs the wallpaper beneath its
+                // translucent menu bar. A uniform backing here prevents the
+                // table's light variation from turning into a pale gradient.
+                Rectangle()
+                    .fill(Color(red: 0.34, green: 0.255, blue: 0.19))
+                    .frame(width: w, height: h * 0.045)
+                    .position(x: w / 2, y: h * 0.0225)
+                    .allowsHitTesting(false)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+            .frame(width: w, height: h)
             .clipped()
         }
+        .ignoresSafeArea()
     }
 }
 
-private struct AgedWoodSurface: View {
+// MARK: - Table
+
+private struct TableSurface: View {
     var body: some View {
         GeometryReader { proxy in
+            let w = proxy.size.width
+            let h = proxy.size.height
+
             ZStack {
-                Color(red: 0.17, green: 0.105, blue: 0.070)
+                Color(red: 0.13, green: 0.09, blue: 0.06)
 
-                Image("RosewoodTexture")
+                Image("WalnutTexture")
                     .resizable()
                     .scaledToFill()
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .rotationEffect(.degrees(90))
-                    .scaleEffect(1.08)
-                    .contrast(0.94)
-                    .saturation(0.76)
-                    .brightness(-0.075)
+                    .frame(width: w, height: h)
+                    .saturation(0.88)
+                    .contrast(1.03)
+                    .brightness(-0.05)
+                    .blur(radius: 0.5)
 
-                Image("RosewoodRoughness")
+                Image("WalnutRoughness")
                     .resizable()
                     .scaledToFill()
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .rotationEffect(.degrees(90))
-                    .scaleEffect(1.08)
-                    .contrast(1.35)
-                    .opacity(0.16)
+                    .frame(width: w, height: h)
+                    .contrast(1.25)
+                    .opacity(0.10)
                     .blendMode(.softLight)
 
-                Color(red: 0.36, green: 0.12, blue: 0.035)
-                    .opacity(0.045)
-                    .blendMode(.softLight)
+                // Warm pool where the key light lands.
+                RadialGradient(
+                    stops: [
+                        .init(color: Color(red: 1.0, green: 0.80, blue: 0.52).opacity(0.12), location: 0),
+                        .init(color: Color(red: 1.0, green: 0.85, blue: 0.62).opacity(0.04), location: 0.42),
+                        .init(color: .clear, location: 0.82)
+                    ],
+                    center: UnitPoint(x: 0.18, y: 0.22),
+                    startRadius: 0,
+                    endRadius: max(w, h) * 0.80
+                )
+                .blendMode(.screen)
 
+                // Soft diagonal band of window light across the table.
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0.00),
+                        .init(color: .white.opacity(0.032), location: 0.22),
+                        .init(color: .clear, location: 0.46),
+                        .init(color: .clear, location: 1.00)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .blendMode(.screen)
+
+                // Ambient falloff away from the light: the far corner sinks.
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0),
+                        .init(color: .clear, location: 0.36),
+                        .init(color: .black.opacity(0.38), location: 1)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                // A table that gets lived on: sparse scratches and an old
+                // mug ring off to the side.
                 Canvas(opaque: false, colorMode: .linear, rendersAsynchronously: true) { context, size in
-                    for scratch in 0..<34 {
+                    for scratch in 0..<18 {
                         let x = materialNoise(scratch, salt: 0.31) * size.width
                         let y = materialNoise(scratch, salt: 1.17) * size.height
-                        let length = 14 + materialNoise(scratch, salt: 2.03) * 130
+                        let length = 10 + materialNoise(scratch, salt: 2.03) * 100
                         let slope = (materialNoise(scratch, salt: 2.89) - 0.5) * 5
                         var path = Path()
                         path.move(to: CGPoint(x: x, y: y))
@@ -82,142 +182,1378 @@ private struct AgedWoodSurface: View {
                         context.stroke(
                             path,
                             with: .color(
-                                scratch.isMultiple(of: 5)
-                                    ? .black.opacity(0.13)
-                                    : .white.opacity(0.065)
+                                scratch.isMultiple(of: 4)
+                                    ? .black.opacity(0.11)
+                                    : .white.opacity(0.055)
                             ),
-                            lineWidth: scratch.isMultiple(of: 5) ? 0.8 : 0.45
+                            lineWidth: scratch.isMultiple(of: 4) ? 0.7 : 0.4
                         )
                     }
 
-                    for dent in 0..<9 {
-                        let x = materialNoise(dent, salt: 3.7) * size.width
-                        let y = materialNoise(dent, salt: 4.9) * size.height
-                        let width = 4 + materialNoise(dent, salt: 5.8) * 15
-                        let height = 1.2 + materialNoise(dent, salt: 6.4) * 3
-                        context.fill(
-                            Path(
-                                ellipseIn: CGRect(
-                                    x: x,
-                                    y: y,
-                                    width: width,
-                                    height: height
-                                )
-                            ),
-                            with: .color(.black.opacity(0.14))
-                        )
-                    }
+                    let ring = CGRect(
+                        x: size.width * 0.105,
+                        y: size.height * 0.775,
+                        width: size.height * 0.085,
+                        height: size.height * 0.082
+                    )
+                    context.stroke(
+                        Path(ellipseIn: ring),
+                        with: .color(.black.opacity(0.10)),
+                        lineWidth: size.height * 0.007
+                    )
                 }
-
-                LinearGradient(
-                    colors: [
-                        Color.white.opacity(0.075),
-                        .clear,
-                        Color.black.opacity(0.20)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                .blur(radius: 1.2)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+            .frame(width: w, height: h)
             .clipped()
         }
     }
 }
 
-private struct AlbumSleeve: View {
+// MARK: - Album sleeve, flat on the table
+
+private struct FlatSleeve: View {
     let artworkURL: URL?
 
     var body: some View {
         GeometryReader { proxy in
-            let size = min(proxy.size.width, proxy.size.height)
-            let radius = size * 0.026
+            let s = min(proxy.size.width, proxy.size.height)
+            let corner = s * 0.010
+            let shape = RoundedRectangle(cornerRadius: corner, style: .continuous)
 
             ZStack {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(Color(white: 0.025))
-                    .offset(x: size * 0.032, y: size * 0.040)
-                    .blur(radius: size * 0.018)
-                    .opacity(0.72)
+                // Grounding shadows: wide ambient plus tight contact.
+                shape
+                    .fill(.black.opacity(0.34))
+                    .offset(SceneLight.shadowOffset(s * 0.026))
+                    .blur(radius: s * 0.022)
+                shape
+                    .fill(.black.opacity(0.52))
+                    .offset(SceneLight.shadowOffset(s * 0.005))
+                    .blur(radius: s * 0.004)
 
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(Color(red: 0.83, green: 0.81, blue: 0.75))
+                // Inner paper sleeve peeking from the open edge.
+                RoundedRectangle(cornerRadius: corner * 0.8, style: .continuous)
+                    .fill(Color(red: 0.93, green: 0.915, blue: 0.875))
+                    .frame(width: s * 0.985, height: s * 0.955)
+                    .rotationEffect(.degrees(1.1))
+                    .offset(x: s * 0.043)
+                    .shadow(color: .black.opacity(0.32), radius: s * 0.006,
+                            x: SceneLight.shadowOffset(s * 0.006).width,
+                            y: SceneLight.shadowOffset(s * 0.006).height)
 
-                WallpaperArtwork(url: artworkURL)
-                    .frame(width: size * 0.94, height: size * 0.94)
-                    .clipShape(
-                        RoundedRectangle(
-                            cornerRadius: radius * 0.72,
-                            style: .continuous
-                        )
+                // Cardboard jacket with the artwork printed full bleed.
+                ZStack {
+                    shape.fill(Color(red: 0.90, green: 0.88, blue: 0.84))
+
+                    WallpaperArtwork(url: artworkURL)
+                        .frame(width: s, height: s)
+                        .saturation(0.92)
+                        .contrast(0.965)
+                        .brightness(-0.025)
+
+                    // Ring wear from the record inside.
+                    Circle()
+                        .stroke(.white.opacity(0.075), lineWidth: s * 0.05)
+                        .frame(width: s * 0.85, height: s * 0.85)
+                        .blur(radius: s * 0.024)
+
+                    // Old crease across the bottom-right corner.
+                    Path { path in
+                        path.move(to: CGPoint(x: s * 0.78, y: s * 1.0))
+                        path.addLine(to: CGPoint(x: s * 1.0, y: s * 0.80))
+                    }
+                    .stroke(.white.opacity(0.10), lineWidth: s * 0.004)
+                    Path { path in
+                        path.move(to: CGPoint(x: s * 0.782, y: s * 1.0))
+                        path.addLine(to: CGPoint(x: s * 1.0, y: s * 0.802))
+                    }
+                    .stroke(.black.opacity(0.08), lineWidth: s * 0.003)
+
+                    // Worn edges, corner dings.
+                    shape
+                        .stroke(.white.opacity(0.09), lineWidth: s * 0.006)
+                        .blur(radius: 1)
+
+                    SleeveWear()
+
+                    // Spine crease along the closed left edge.
+                    HStack(spacing: 0) {
+                        Rectangle()
+                            .fill(.black.opacity(0.15))
+                            .frame(width: s * 0.007)
+                        Rectangle()
+                            .fill(.white.opacity(0.09))
+                            .frame(width: s * 0.005)
+                        Spacer()
+                    }
+
+                    // Matte print sheen, aligned with the key light.
+                    LinearGradient(
+                        stops: [
+                            .init(color: .white.opacity(0.15), location: 0),
+                            .init(color: .clear, location: 0.30),
+                            .init(color: .clear, location: 0.70),
+                            .init(color: .black.opacity(0.15), location: 1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
                     )
 
-                MaterialImperfections(
-                    scratchesOpacity: 0.075,
-                    dustOpacity: 0.12
+                    SurfaceGrain(intensity: 0.11, seed: 3)
+
+                    MaterialImperfections(scratchesOpacity: 0.05, dustOpacity: 0.09)
+                }
+                .compositingGroup()
+                .clipShape(shape)
+
+                // Cardboard thickness on the edges turned away from the light.
+                shape
+                    .stroke(.black.opacity(0.32), lineWidth: s * 0.004)
+                    .offset(SceneLight.shadowOffset(s * 0.003))
+                    .mask(
+                        LinearGradient(
+                            colors: [.clear, .black],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+        }
+    }
+}
+
+/// Scuffed corners and tiny dings — cardboard never stays perfect.
+private struct SleeveWear: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let s = min(proxy.size.width, proxy.size.height)
+
+            Canvas(opaque: false, colorMode: .linear, rendersAsynchronously: true) { context, _ in
+                // Whitened corners where the print rubbed off.
+                let corners = [
+                    CGPoint(x: s * 0.015, y: s * 0.015),
+                    CGPoint(x: s * 0.985, y: s * 0.985),
+                    CGPoint(x: s * 0.985, y: s * 0.02)
+                ]
+                for (i, corner) in corners.enumerated() {
+                    let reach = s * (0.018 + materialNoise(i, salt: 31.7) * 0.02)
+                    context.fill(
+                        Path(ellipseIn: CGRect(
+                            x: corner.x - reach, y: corner.y - reach,
+                            width: reach * 2, height: reach * 2
+                        )),
+                        with: .color(.white.opacity(0.16))
+                    )
+                }
+
+                // Small edge nicks.
+                for nick in 0..<10 {
+                    let edge = nick % 4
+                    let t = materialNoise(nick, salt: 13.7)
+                    let len = s * (0.004 + materialNoise(nick, salt: 14.4) * 0.010)
+                    var path = Path()
+                    switch edge {
+                    case 0:
+                        path.move(to: CGPoint(x: t * s, y: s * 0.004))
+                        path.addLine(to: CGPoint(x: t * s + len, y: s * 0.006))
+                    case 1:
+                        path.move(to: CGPoint(x: s * 0.996, y: t * s))
+                        path.addLine(to: CGPoint(x: s * 0.994, y: t * s + len))
+                    case 2:
+                        path.move(to: CGPoint(x: t * s, y: s * 0.996))
+                        path.addLine(to: CGPoint(x: t * s + len, y: s * 0.994))
+                    default:
+                        path.move(to: CGPoint(x: s * 0.004, y: t * s))
+                        path.addLine(to: CGPoint(x: s * 0.006, y: t * s + len))
+                    }
+                    context.stroke(path, with: .color(.white.opacity(0.30)), lineWidth: 0.9)
+                }
+            }
+            .blur(radius: 0.4)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+// MARK: - Turntable
+
+private struct TurntableDeck: View {
+    let item: PlayingItem
+    let snapshotDate: Date
+
+    var body: some View {
+        GeometryReader { proxy in
+            let W = proxy.size.width
+            let H = proxy.size.height
+            let corner = H * 0.040
+            let platterD = H * 0.86
+            let platterCenter = CGPoint(x: W * 0.370, y: H * 0.500)
+            let recordD = platterD * 0.965
+            let shape = RoundedRectangle(cornerRadius: corner, style: .continuous)
+
+            ZStack {
+                // Grounding shadows.
+                shape
+                    .fill(.black.opacity(0.34))
+                    .offset(SceneLight.shadowOffset(H * 0.032))
+                    .blur(radius: H * 0.026)
+                shape
+                    .fill(.black.opacity(0.46))
+                    .offset(SceneLight.shadowOffset(H * 0.008))
+                    .blur(radius: H * 0.006)
+
+                // Chassis side, visible where the body turns away from the light.
+                shape
+                    .fill(Color(red: 0.38, green: 0.37, blue: 0.355))
+                    .offset(SceneLight.shadowOffset(H * 0.012))
+
+                DeckFace(corner: corner)
+
+                // Recess where the platter sits.
+                Circle()
+                    .stroke(.black.opacity(0.38), lineWidth: platterD * 0.018)
+                    .frame(width: platterD * 1.016, height: platterD * 1.016)
+                    .position(platterCenter)
+                    .blur(radius: platterD * 0.007)
+
+                Platter()
+                    .frame(width: platterD, height: platterD)
+                    .position(platterCenter)
+
+                // The record throws its own shadow onto the platter rim.
+                Circle()
+                    .fill(.black.opacity(0.38))
+                    .frame(width: recordD, height: recordD)
+                    .offset(SceneLight.shadowOffset(recordD * 0.007))
+                    .blur(radius: recordD * 0.005)
+                    .position(platterCenter)
+
+                RecordAssembly(item: item, snapshotDate: snapshotDate)
+                    .frame(width: recordD, height: recordD)
+                    .position(platterCenter)
+
+                ControlCluster()
+
+                TonearmAssembly(
+                    recordCenter: platterCenter,
+                    recordDiameter: recordD
                 )
-                    .clipShape(
-                        RoundedRectangle(
-                            cornerRadius: radius,
-                            style: .continuous
+
+                DeckDetails(corner: corner)
+            }
+        }
+    }
+}
+
+private struct DeckFace: View {
+    let corner: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            let shape = RoundedRectangle(cornerRadius: corner, style: .continuous)
+
+            ZStack {
+                // Aged champagne aluminum, clearly brighter toward the key
+                // light and slightly warmer than a new silver appliance.
+                shape.fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color(red: 0.885, green: 0.855, blue: 0.790), location: 0),
+                            .init(color: Color(red: 0.790, green: 0.758, blue: 0.695), location: 0.38),
+                            .init(color: Color(red: 0.665, green: 0.635, blue: 0.575), location: 0.74),
+                            .init(color: Color(red: 0.565, green: 0.540, blue: 0.492), location: 1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+
+                Rectangle()
+                    .fill(.gray)
+                    .colorEffect(
+                        ShaderLibrary.brushedMetal(
+                            .float2(proxy.size.width, proxy.size.height),
+                            .float(7)
                         )
                     )
+                    .blendMode(.softLight)
 
+                // Bloom where the lamp hits the face.
+                RadialGradient(
+                    colors: [
+                        Color(red: 1.0, green: 0.92, blue: 0.78).opacity(0.24),
+                        .clear
+                    ],
+                    center: UnitPoint(x: 0.12, y: 0.06),
+                    startRadius: 0,
+                    endRadius: proxy.size.width * 0.60
+                )
+                .blendMode(.screen)
+
+                // Occlusion creeping in along the far edges.
                 LinearGradient(
                     stops: [
-                        .init(color: .white.opacity(0.28), location: 0),
-                        .init(color: .clear, location: 0.18),
-                        .init(color: .clear, location: 0.70),
-                        .init(color: .black.opacity(0.18), location: 1)
+                        .init(color: .clear, location: 0),
+                        .init(color: .clear, location: 0.55),
+                        .init(color: .black.opacity(0.14), location: 1)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .clipShape(
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                )
 
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .stroke(.white.opacity(0.30), lineWidth: 1)
+                MaterialImperfections(scratchesOpacity: 0.050, dustOpacity: 0.035)
 
-                RoundedRectangle(cornerRadius: radius * 0.66, style: .continuous)
-                    .stroke(.black.opacity(0.20), lineWidth: 1)
-                    .padding(size * 0.029)
+                DeckPatina()
 
-                Canvas(opaque: false, colorMode: .linear, rendersAsynchronously: true) { context, canvasSize in
-                    for nick in 0..<14 {
-                        let edge = nick % 4
-                        let location = materialNoise(nick, salt: 13.7)
-                        let length = 1.2 + materialNoise(nick, salt: 14.4) * 4.2
+                SurfaceGrain(intensity: 0.05, seed: 5)
+
+                // Machined edge: bright where it faces the light, dark opposite.
+                shape
+                    .stroke(
+                        LinearGradient(
+                            colors: [.white.opacity(0.55), .black.opacity(0.35)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+                shape
+                    .inset(by: 1.5)
+                    .stroke(.black.opacity(0.12), lineWidth: 1)
+                    .blur(radius: 0.8)
+            }
+            .compositingGroup()
+            .clipShape(shape)
+        }
+    }
+}
+
+/// Age on the aluminum: faint discoloration blotches and use scuffs around
+/// the controls.
+private struct DeckPatina: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let w = proxy.size.width
+            let h = proxy.size.height
+
+            ZStack {
+                ForEach(0..<6, id: \.self) { mark in
+                    Ellipse()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    .black.opacity(mark.isMultiple(of: 2) ? 0.06 : 0.035),
+                                    .clear
+                                ],
+                                center: .center,
+                                startRadius: 0,
+                                endRadius: w * 0.05
+                            )
+                        )
+                        .frame(
+                            width: w * (0.04 + materialNoise(mark, salt: 21.4) * 0.09),
+                            height: h * (0.02 + materialNoise(mark, salt: 22.8) * 0.05)
+                        )
+                        .position(
+                            x: w * (0.05 + materialNoise(mark, salt: 23.6) * 0.9),
+                            y: h * (0.05 + materialNoise(mark, salt: 24.7) * 0.9)
+                        )
+                        .blur(radius: 3)
+                }
+
+                // Fingerprint smudges where the deck gets handled.
+                ForEach(0..<3, id: \.self) { print in
+                    Ellipse()
+                        .fill(.black.opacity(0.030))
+                        .frame(
+                            width: w * (0.030 + materialNoise(print, salt: 61.3) * 0.020),
+                            height: h * (0.030 + materialNoise(print, salt: 62.1) * 0.028)
+                        )
+                        .rotationEffect(.degrees(Double(materialNoise(print, salt: 63.4)) * 80 - 40))
+                        .position(
+                            x: w * [0.80, 0.86, 0.075][print],
+                            y: h * [0.60, 0.88, 0.14][print]
+                        )
+                        .blur(radius: 2.5)
+                }
+
+                // Scuffing where hands reach the controls.
+                Canvas(opaque: false, colorMode: .linear, rendersAsynchronously: true) { context, size in
+                    for scuff in 0..<8 {
+                        let cx = size.width * (0.78 + materialNoise(scuff, salt: 41.2) * 0.18)
+                        let cy = size.height * (0.55 + materialNoise(scuff, salt: 42.8) * 0.38)
+                        let r = size.height * (0.02 + materialNoise(scuff, salt: 43.5) * 0.05)
+                        let start = Double(materialNoise(scuff, salt: 44.1)) * 320
+                        var path = Path()
+                        path.addArc(
+                            center: CGPoint(x: cx, y: cy),
+                            radius: r,
+                            startAngle: .degrees(start),
+                            endAngle: .degrees(start + 40 + Double(materialNoise(scuff, salt: 45.7)) * 60),
+                            clockwise: false
+                        )
+                        context.stroke(
+                            path,
+                            with: .color(.white.opacity(0.06)),
+                            lineWidth: 0.6
+                        )
+                    }
+
+                    // Small perimeter nicks break the perfectly manufactured
+                    // silhouette without making the deck look neglected.
+                    for nick in 0..<18 {
+                        let side = nick % 4
+                        let position = materialNoise(nick, salt: 71.6)
+                        let length = 1.0 + materialNoise(nick, salt: 72.8) * 4.0
                         var path = Path()
 
-                        switch edge {
+                        switch side {
                         case 0:
-                            path.move(to: CGPoint(x: location * canvasSize.width, y: 0.8))
-                            path.addLine(to: CGPoint(x: location * canvasSize.width + length, y: 1.4))
+                            let x = size.width * position
+                            path.move(to: CGPoint(x: x, y: 1.2))
+                            path.addLine(to: CGPoint(x: x + length, y: 2.0))
                         case 1:
-                            path.move(to: CGPoint(x: canvasSize.width - 0.8, y: location * canvasSize.height))
-                            path.addLine(to: CGPoint(x: canvasSize.width - 1.4, y: location * canvasSize.height + length))
+                            let y = size.height * position
+                            path.move(to: CGPoint(x: size.width - 1.2, y: y))
+                            path.addLine(to: CGPoint(x: size.width - 2.0, y: y + length))
                         case 2:
-                            path.move(to: CGPoint(x: location * canvasSize.width, y: canvasSize.height - 0.8))
-                            path.addLine(to: CGPoint(x: location * canvasSize.width + length, y: canvasSize.height - 1.5))
+                            let x = size.width * position
+                            path.move(to: CGPoint(x: x, y: size.height - 1.2))
+                            path.addLine(to: CGPoint(x: x + length, y: size.height - 2.0))
                         default:
-                            path.move(to: CGPoint(x: 0.8, y: location * canvasSize.height))
-                            path.addLine(to: CGPoint(x: 1.4, y: location * canvasSize.height + length))
+                            let y = size.height * position
+                            path.move(to: CGPoint(x: 1.2, y: y))
+                            path.addLine(to: CGPoint(x: 2.0, y: y + length))
                         }
 
                         context.stroke(
                             path,
-                            with: .color(.white.opacity(0.34)),
-                            lineWidth: 0.8
+                            with: .color(
+                                nick.isMultiple(of: 3)
+                                    ? .black.opacity(0.20)
+                                    : .white.opacity(0.20)
+                            ),
+                            lineWidth: 0.65
                         )
                     }
                 }
-                .clipShape(
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                )
             }
         }
+        .allowsHitTesting(false)
+    }
+}
+
+private struct Platter: View {
+    var body: some View {
+        GeometryReader { proxy in
+            Rectangle()
+                .fill(.black)
+                .colorEffect(
+                    ShaderLibrary.platterSurface(
+                        .float2(proxy.size.width, proxy.size.height),
+                        SceneLight.shaderDirection
+                    )
+                )
+        }
+    }
+}
+
+private struct RecordAssembly: View {
+    let item: PlayingItem
+    let snapshotDate: Date
+
+    var body: some View {
+        GeometryReader { proxy in
+            let d = min(proxy.size.width, proxy.size.height)
+            let labelD = d * 0.315
+
+            ZStack {
+                // Static vinyl surface: grooves are rotationally symmetric, so
+                // only the label, dust, and smudges need to spin.
+                Rectangle()
+                    .fill(.black)
+                    .colorEffect(
+                        ShaderLibrary.vinylSurface(
+                            .float2(d, d),
+                            SceneLight.shaderDirection
+                        )
+                    )
+
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !item.isPlaying)) { context in
+                    ZStack {
+                        RecordDust()
+                            .frame(width: d * 0.96, height: d * 0.96)
+
+                        // Pressing is never dead-centre; the label wobbles a
+                        // hair as the record turns.
+                        RecordLabel(artworkURL: item.artworkURL)
+                            .frame(width: labelD, height: labelD)
+                            .offset(x: d * 0.0035, y: d * 0.0015)
+                    }
+                    .rotationEffect(rotation(at: context.date))
+                }
+
+                Spindle()
+                    .frame(width: d * 0.022, height: d * 0.022)
+            }
+            .frame(width: d, height: d)
+            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+        }
+    }
+
+    private func rotation(at date: Date) -> Angle {
+        let snapshotProgress = Double(item.progressMilliseconds ?? 0) / 1_000
+        let elapsed = item.isPlaying ? max(0, date.timeIntervalSince(snapshotDate)) : 0
+        return .degrees((snapshotProgress + elapsed) * 30)
+    }
+}
+
+private struct RecordDust: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let d = min(proxy.size.width, proxy.size.height)
+
+            Canvas(opaque: false, colorMode: .linear, rendersAsynchronously: true) { context, size in
+                let center = CGPoint(x: size.width / 2, y: size.height / 2)
+
+                for dust in 0..<22 {
+                    let angle = materialNoise(dust, salt: 8.1) * .pi * 2
+                    let radius = size.width * (0.20 + materialNoise(dust, salt: 9.2) * 0.27)
+                    let x = center.x + cos(angle) * radius
+                    let y = center.y + sin(angle) * radius
+                    let speck = CGRect(
+                        x: x, y: y,
+                        width: 0.4 + materialNoise(dust, salt: 10.2) * 1.0,
+                        height: 0.25 + materialNoise(dust, salt: 11.3) * 0.55
+                    )
+                    context.fill(
+                        Path(ellipseIn: speck),
+                        with: .color(.white.opacity(0.025 + Double(materialNoise(dust, salt: 12.2)) * 0.065))
+                    )
+                }
+
+                // Faint handling smudges: soft arc bands where fingers held
+                // the record.
+                for smudge in 0..<3 {
+                    let radius = size.width * (0.30 + materialNoise(smudge, salt: 51.3) * 0.16)
+                    let start = Double(materialNoise(smudge, salt: 52.9)) * 360
+                    var path = Path()
+                    path.addArc(
+                        center: center,
+                        radius: radius,
+                        startAngle: .degrees(start),
+                        endAngle: .degrees(start + 16 + Double(materialNoise(smudge, salt: 53.7)) * 24),
+                        clockwise: false
+                    )
+                    context.stroke(
+                        path,
+                        with: .color(.white.opacity(0.028)),
+                        lineWidth: d * 0.035
+                    )
+                }
+            }
+            .blur(radius: 0.6)
+        }
+    }
+}
+
+private struct RecordLabel: View {
+    let artworkURL: URL?
+
+    var body: some View {
+        GeometryReader { proxy in
+            let d = min(proxy.size.width, proxy.size.height)
+
+            ZStack {
+                // Matte paper label.
+                WallpaperArtwork(url: artworkURL)
+                    .frame(width: d, height: d)
+                    .saturation(0.94)
+                    .contrast(0.96)
+                    .brightness(-0.03)
+                    .clipShape(Circle())
+
+                SurfaceGrain(intensity: 0.13, seed: 9)
+                    .clipShape(Circle())
+
+                // Pressing ridges embossed into the paper.
+                ForEach([0.90, 0.62], id: \.self) { inset in
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                colors: [.white.opacity(0.16), .black.opacity(0.18)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: max(0.6, d * 0.006)
+                        )
+                        .frame(width: d * inset, height: d * inset)
+                        .opacity(0.7)
+                }
+
+                // Slight shadow where vinyl meets the paper.
+                Circle()
+                    .stroke(.black.opacity(0.40), lineWidth: max(0.8, d * 0.010))
+                    .blur(radius: 0.6)
+            }
+            .compositingGroup()
+            .frame(width: d, height: d)
+            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+        }
+    }
+}
+
+private struct Spindle: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let d = min(proxy.size.width, proxy.size.height)
+            ZStack {
+                Circle()
+                    .fill(.black.opacity(0.5))
+                    .frame(width: d * 1.5, height: d * 1.5)
+                    .offset(SceneLight.shadowOffset(d * 0.18))
+                    .blur(radius: d * 0.15)
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color(white: 0.98), Color(white: 0.42)],
+                            center: .topLeading,
+                            startRadius: 0,
+                            endRadius: d
+                        )
+                    )
+                Circle()
+                    .stroke(.black.opacity(0.45), lineWidth: 0.6)
+            }
+            .frame(width: d, height: d)
+            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+        }
+    }
+}
+
+// MARK: - Tonearm
+
+private struct TonearmAssembly: View {
+    let recordCenter: CGPoint
+    let recordDiameter: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            let H = proxy.size.height
+            let W = proxy.size.width
+            let pivot = CGPoint(x: W * 0.858, y: H * 0.215)
+            let recordR = recordDiameter / 2
+
+            // Stylus rests two-thirds into the grooves, lower right of the disc.
+            let stylusRad = Angle.degrees(68).radians
+            let stylus = CGPoint(
+                x: recordCenter.x + CGFloat(cos(stylusRad)) * recordR * 0.72,
+                y: recordCenter.y + CGFloat(sin(stylusRad)) * recordR * 0.72
+            )
+
+            let armVector = CGVector(dx: stylus.x - pivot.x, dy: stylus.y - pivot.y)
+            let armLength = sqrt(armVector.dx * armVector.dx + armVector.dy * armVector.dy)
+            let armUnit = CGVector(dx: armVector.dx / armLength, dy: armVector.dy / armLength)
+            let armAngle = Angle.radians(atan2(Double(armVector.dy), Double(armVector.dx)))
+
+            let headshellLength = H * 0.100
+            // Tube dives into the back of the headshell so the joint reads as
+            // one machine, not two shapes butted together.
+            let tubeEnd = CGPoint(
+                x: stylus.x - armUnit.dx * headshellLength * 0.45,
+                y: stylus.y - armUnit.dy * headshellLength * 0.45
+            )
+            let collar = CGPoint(
+                x: stylus.x - armUnit.dx * headshellLength * 0.88,
+                y: stylus.y - armUnit.dy * headshellLength * 0.88
+            )
+            let counterweightCenter = CGPoint(
+                x: pivot.x - armUnit.dx * H * 0.108,
+                y: pivot.y - armUnit.dy * H * 0.108
+            )
+
+            let tube = Path { path in
+                path.move(to: pivot)
+                path.addLine(to: tubeEnd)
+            }
+            // Stub that carries the counterweight behind the pivot.
+            let stub = Path { path in
+                path.move(to: pivot)
+                path.addLine(to: CGPoint(
+                    x: pivot.x - armUnit.dx * H * 0.13,
+                    y: pivot.y - armUnit.dy * H * 0.13
+                ))
+            }
+
+            ZStack {
+                // Two-level shadow: the arm floats well above the record, so it
+                // throws a soft displaced shadow plus a fainter wide one.
+                Path { path in
+                    path.move(to: pivot)
+                    path.addLine(to: stylus)
+                }
+                .stroke(
+                    .black.opacity(0.20),
+                    style: StrokeStyle(lineWidth: H * 0.022, lineCap: .round)
+                )
+                .offset(SceneLight.shadowOffset(H * 0.030))
+                .blur(radius: H * 0.014)
+
+                Path { path in
+                    path.move(to: pivot)
+                    path.addLine(to: stylus)
+                }
+                .stroke(
+                    .black.opacity(0.26),
+                    style: StrokeStyle(lineWidth: H * 0.012, lineCap: .round)
+                )
+                .offset(SceneLight.shadowOffset(H * 0.013))
+                .blur(radius: H * 0.006)
+
+                // Rear stub the counterweight rides on.
+                stub
+                    .stroke(
+                        .black.opacity(0.35),
+                        style: StrokeStyle(lineWidth: H * 0.0145, lineCap: .round)
+                    )
+                    .offset(
+                        x: -SceneLight.direction.dx * H * 0.002,
+                        y: -SceneLight.direction.dy * H * 0.002
+                    )
+                stub
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color(white: 0.70), Color(white: 0.28)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        style: StrokeStyle(lineWidth: H * 0.0115, lineCap: .round)
+                    )
+
+                // Counterweight: a lying cylinder. Its cast shadow is drawn
+                // separately (rotated with the body but offset in scene space)
+                // so the weight clearly floats above the face.
+                RoundedRectangle(cornerRadius: H * 0.012, style: .continuous)
+                    .fill(.black.opacity(0.35))
+                    .frame(width: H * 0.062, height: H * 0.044)
+                    .rotationEffect(armAngle)
+                    .position(counterweightCenter)
+                    .offset(SceneLight.shadowOffset(H * 0.011))
+                    .blur(radius: H * 0.006)
+
+                ZStack {
+                    // Cross-axis cylinder shading: the local +y edge faces the
+                    // lamp for this arm geometry.
+                    RoundedRectangle(cornerRadius: H * 0.010, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: Color(white: 0.14), location: 0),
+                                    .init(color: Color(white: 0.38), location: 0.30),
+                                    .init(color: Color(white: 0.82), location: 0.68),
+                                    .init(color: Color(white: 0.55), location: 0.92),
+                                    .init(color: Color(white: 0.30), location: 1)
+                                ],
+                                startPoint: UnitPoint(x: 0.5, y: 0),
+                                endPoint: UnitPoint(x: 0.5, y: 1)
+                            )
+                        )
+                    // Specular streak running the length of the barrel.
+                    Capsule()
+                        .fill(.white.opacity(0.55))
+                        .frame(width: H * 0.048, height: H * 0.0035)
+                        .offset(y: H * 0.0095)
+                        .blur(radius: 0.4)
+                    // Knurling.
+                    HStack(spacing: H * 0.0065) {
+                        ForEach(0..<4, id: \.self) { _ in
+                            Rectangle()
+                                .fill(.black.opacity(0.30))
+                                .frame(width: H * 0.0025)
+                        }
+                    }
+                    // End caps read as machined edges.
+                    HStack {
+                        Rectangle()
+                            .fill(.black.opacity(0.35))
+                            .frame(width: H * 0.0022)
+                        Spacer()
+                        Rectangle()
+                            .fill(.black.opacity(0.35))
+                            .frame(width: H * 0.0022)
+                    }
+                    RoundedRectangle(cornerRadius: H * 0.010, style: .continuous)
+                        .stroke(.black.opacity(0.30), lineWidth: 0.6)
+                }
+                .frame(width: H * 0.062, height: H * 0.046)
+                .rotationEffect(armAngle)
+                .position(counterweightCenter)
+
+                // Chrome tube: dark underside, bright core, specular hairline.
+                tube
+                    .stroke(
+                        .black.opacity(0.40),
+                        style: StrokeStyle(lineWidth: H * 0.0170, lineCap: .round)
+                    )
+                    .offset(
+                        x: -SceneLight.direction.dx * H * 0.0022,
+                        y: -SceneLight.direction.dy * H * 0.0022
+                    )
+                tube
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.90, green: 0.89, blue: 0.87),
+                                Color(white: 0.52)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        style: StrokeStyle(lineWidth: H * 0.0130, lineCap: .round)
+                    )
+                tube
+                    .stroke(
+                        .white.opacity(0.85),
+                        style: StrokeStyle(lineWidth: H * 0.0034, lineCap: .round)
+                    )
+                    .offset(
+                        x: SceneLight.direction.dx * H * 0.0030,
+                        y: SceneLight.direction.dy * H * 0.0030
+                    )
+
+                Headshell(
+                    length: headshellLength,
+                    height: H * 0.048,
+                    angle: armAngle + .degrees(7)
+                )
+                .position(
+                    x: stylus.x - armUnit.dx * headshellLength * 0.30,
+                    y: stylus.y - armUnit.dy * headshellLength * 0.30
+                )
+                .shadow(
+                    color: .black.opacity(0.42),
+                    radius: H * 0.005,
+                    x: SceneLight.shadowOffset(H * 0.009).width,
+                    y: SceneLight.shadowOffset(H * 0.009).height
+                )
+
+                // Locking collar where tube meets headshell.
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(white: 0.80), Color(white: 0.28)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        Capsule().stroke(.black.opacity(0.35), lineWidth: 0.5)
+                    )
+                    .frame(width: H * 0.016, height: H * 0.030)
+                    .rotationEffect(armAngle)
+                    .position(collar)
+
+                // Pivot bearing: a raised cylinder stack. Each level throws a
+                // contact shadow on the one below and shows a sliver of side
+                // wall — dark away from the lamp, bright toward it — which is
+                // what actually sells the height from straight above.
+                PivotTower(height: H)
+                    .position(pivot)
+
+                // Tight contact shadow where the stylus meets the groove.
+                Ellipse()
+                    .fill(.black.opacity(0.5))
+                    .frame(width: H * 0.022, height: H * 0.012)
+                    .blur(radius: 1.4)
+                    .position(
+                        x: stylus.x + SceneLight.shadowOffset(H * 0.004).width,
+                        y: stylus.y + SceneLight.shadowOffset(H * 0.004).height
+                    )
+            }
+        }
+    }
+}
+
+/// The visible side wall of a raised cylinder seen from straight above:
+/// a bright crescent facing the lamp, a dark crescent away from it.
+private struct CylinderRim: View {
+    var lineWidth: CGFloat
+    var brightness: Double = 0.55
+    var darkness: Double = 0.40
+
+    var body: some View {
+        // Key light sits at 236° in gradient space (angle 0 at 3 o'clock,
+        // clockwise, y down): 236/360 ≈ 0.656.
+        Circle()
+            .strokeBorder(
+                AngularGradient(
+                    stops: [
+                        .init(color: .black.opacity(darkness * 0.55), location: 0),
+                        .init(color: .black.opacity(darkness), location: 0.156),
+                        .init(color: .black.opacity(darkness * 0.30), location: 0.40),
+                        .init(color: .white.opacity(brightness), location: 0.656),
+                        .init(color: .black.opacity(darkness * 0.30), location: 0.90),
+                        .init(color: .black.opacity(darkness * 0.55), location: 1)
+                    ],
+                    center: .center
+                ),
+                lineWidth: lineWidth
+            )
+    }
+}
+
+/// The tonearm's pivot bearing as a stack of machined cylinders, with the
+/// inter-level contact shadows and side walls that make it read as raised
+/// hardware instead of printed rings.
+private struct PivotTower: View {
+    let height: CGFloat
+
+    var body: some View {
+        let H = height
+        let flangeD = H * 0.150
+        let ringD = H * 0.100
+        let capD = H * 0.058
+
+        ZStack {
+            // Whole tower throws one soft shadow onto the deck face.
+            Circle()
+                .fill(.black.opacity(0.30))
+                .frame(width: flangeD * 0.98, height: flangeD * 0.98)
+                .offset(SceneLight.shadowOffset(H * 0.013))
+                .blur(radius: H * 0.009)
+
+            // Base flange.
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.82, green: 0.81, blue: 0.785),
+                            Color(red: 0.575, green: 0.565, blue: 0.545)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: flangeD, height: flangeD)
+            CylinderRim(lineWidth: flangeD * 0.035, brightness: 0.5, darkness: 0.38)
+                .frame(width: flangeD, height: flangeD)
+
+            // The ring level presses a contact shadow into the flange.
+            Circle()
+                .fill(.black.opacity(0.32))
+                .frame(width: ringD * 1.10, height: ringD * 1.10)
+                .offset(SceneLight.shadowOffset(H * 0.007))
+                .blur(radius: H * 0.005)
+
+            // Machined outer ring, clearly taller than the flange.
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(white: 0.88),
+                            Color(white: 0.52)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: ringD, height: ringD)
+            CylinderRim(lineWidth: ringD * 0.09, brightness: 0.65, darkness: 0.5)
+                .frame(width: ringD, height: ringD)
+
+            // Bearing gap between ring and cap.
+            Circle()
+                .stroke(.black.opacity(0.55), lineWidth: H * 0.0035)
+                .frame(width: capD * 1.16, height: capD * 1.16)
+
+            // Cap's own contact shadow inside the ring.
+            Circle()
+                .fill(.black.opacity(0.30))
+                .frame(width: capD * 1.06, height: capD * 1.06)
+                .offset(SceneLight.shadowOffset(H * 0.004))
+                .blur(radius: H * 0.003)
+
+            // Domed centre cap: hot spot toward the lamp, falling away to a
+            // dark far rim.
+            Circle()
+                .fill(
+                    RadialGradient(
+                        stops: [
+                            .init(color: Color(white: 0.96), location: 0),
+                            .init(color: Color(white: 0.72), location: 0.30),
+                            .init(color: Color(white: 0.42), location: 0.66),
+                            .init(color: Color(white: 0.20), location: 1)
+                        ],
+                        center: UnitPoint(x: 0.32, y: 0.26),
+                        startRadius: 0,
+                        endRadius: capD * 0.85
+                    )
+                )
+                .frame(width: capD, height: capD)
+            // Occlusion where the dome meets its seat.
+            Circle()
+                .strokeBorder(.black.opacity(0.28), lineWidth: capD * 0.09)
+                .frame(width: capD, height: capD)
+                .blur(radius: 0.5)
+            // Pin-sharp glint.
+            Circle()
+                .fill(.white.opacity(0.9))
+                .frame(width: capD * 0.14, height: capD * 0.14)
+                .offset(
+                    x: SceneLight.direction.dx * capD * 0.24,
+                    y: SceneLight.direction.dy * capD * 0.24
+                )
+                .blur(radius: 0.3)
+        }
+    }
+}
+
+/// Tapered headshell with cartridge, drawn in its own local frame and dropped
+/// onto the arm axis.
+private struct Headshell: View {
+    let length: CGFloat
+    let height: CGFloat
+    let angle: Angle
+
+    var body: some View {
+        ZStack {
+            // Tapered body: wider at the collar, slimmer at the cartridge.
+            HeadshellShape()
+                .fill(
+                    LinearGradient(
+                        colors: [Color(white: 0.32), Color(white: 0.07)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            HeadshellShape()
+                .stroke(.white.opacity(0.20), lineWidth: 0.6)
+
+            // Cartridge block near the front.
+            RoundedRectangle(cornerRadius: height * 0.10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(white: 0.22), Color(white: 0.03)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: length * 0.28, height: height * 0.78)
+                .offset(x: length * 0.28)
+
+            // Red stylus assembly poking out of the front.
+            RoundedRectangle(cornerRadius: 0.8, style: .continuous)
+                .fill(Color(red: 0.62, green: 0.11, blue: 0.08))
+                .frame(width: length * 0.085, height: height * 0.30)
+                .offset(x: length * 0.43, y: height * 0.16)
+        }
+        .frame(width: length, height: height)
+        .rotationEffect(angle)
+    }
+}
+
+private struct HeadshellShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let taper = rect.height * 0.13
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + taper))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - taper))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+// MARK: - Controls
+
+private struct ControlCluster: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let W = proxy.size.width
+            let H = proxy.size.height
+            let clusterX = W * 0.858
+
+            ZStack {
+                SpeedKnob()
+                    .frame(width: H * 0.128, height: H * 0.128)
+                    .position(x: clusterX, y: H * 0.770)
+
+                EngravedText("33", size: H * 0.018)
+                    .position(x: clusterX - W * 0.026, y: H * 0.672)
+                EngravedText("45", size: H * 0.018)
+                    .position(x: clusterX + W * 0.026, y: H * 0.672)
+
+                ToggleSwitch()
+                    .frame(width: H * 0.029, height: H * 0.085)
+                    .position(x: clusterX - W * 0.042, y: H * 0.485)
+
+                // Braun's quiet green power light.
+                Circle()
+                    .fill(Color(red: 0.42, green: 0.68, blue: 0.31))
+                    .frame(width: H * 0.009, height: H * 0.009)
+                    .shadow(color: Color(red: 0.50, green: 0.82, blue: 0.34).opacity(0.35), radius: H * 0.003)
+                    .overlay(Circle().stroke(.black.opacity(0.4), lineWidth: 0.5))
+                    .position(x: clusterX + W * 0.043, y: H * 0.485)
+
+            }
+        }
+    }
+}
+
+private struct EngravedText: View {
+    let text: String
+    let size: CGFloat
+
+    init(_ text: String, size: CGFloat) {
+        self.text = text
+        self.size = size
+    }
+
+    var body: some View {
+        ZStack {
+            styled.foregroundStyle(.white.opacity(0.45)).offset(x: 0.4, y: 0.5)
+            styled.foregroundStyle(.black.opacity(0.55))
+        }
+    }
+
+    private var styled: Text {
+        Text(text)
+            .font(.system(size: max(6, size), weight: .regular))
+            .kerning(size * 0.10)
+    }
+}
+
+private struct SpeedKnob: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let d = min(proxy.size.width, proxy.size.height)
+
+            ZStack {
+                // Recess the knob sits in.
+                Circle()
+                    .fill(.black.opacity(0.24))
+                    .blur(radius: d * 0.024)
+                    .frame(width: d * 0.96, height: d * 0.96)
+                    .offset(SceneLight.shadowOffset(-d * 0.010))
+
+                // Knob body: aluminum, lit from the key light.
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.88, green: 0.87, blue: 0.845),
+                                Color(red: 0.58, green: 0.57, blue: 0.55)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .padding(d * 0.080)
+                    .overlay(
+                        Circle().stroke(
+                            LinearGradient(
+                                colors: [.white.opacity(0.7), .black.opacity(0.4)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 0.9
+                        )
+                        .padding(d * 0.080)
+                    )
+                    .shadow(
+                        color: .black.opacity(0.45),
+                        radius: d * 0.030,
+                        x: SceneLight.shadowOffset(d * 0.040).width,
+                        y: SceneLight.shadowOffset(d * 0.040).height
+                    )
+
+                // Machined dome falloff.
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [.white.opacity(0.26), .clear, .black.opacity(0.16)],
+                            center: UnitPoint(x: 0.32, y: 0.28),
+                            startRadius: 0,
+                            endRadius: d * 0.48
+                        )
+                    )
+                    .padding(d * 0.080)
+
+                // Indicator groove, set to 33.
+                Capsule()
+                    .fill(.black.opacity(0.55))
+                    .frame(width: max(1, d * 0.020), height: d * 0.19)
+                    .offset(y: -d * 0.18)
+                    .rotationEffect(.degrees(-36))
+                Capsule()
+                    .fill(.white.opacity(0.20))
+                    .frame(width: max(0.5, d * 0.007), height: d * 0.19)
+                    .offset(x: d * 0.007, y: -d * 0.18)
+                    .rotationEffect(.degrees(-36))
+            }
+            .frame(width: d, height: d)
+            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+        }
+    }
+}
+
+private struct ToggleSwitch: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let w = proxy.size.width
+            let h = proxy.size.height
+
+            ZStack {
+                // Recessed plate machined into the face.
+                RoundedRectangle(cornerRadius: w * 0.35, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.58, green: 0.57, blue: 0.55),
+                                Color(red: 0.70, green: 0.69, blue: 0.67)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: w * 1.9, height: h * 1.24)
+                RoundedRectangle(cornerRadius: w * 0.35, style: .continuous)
+                    .stroke(.black.opacity(0.28), lineWidth: 0.7)
+                    .frame(width: w * 1.9, height: h * 1.24)
+                RoundedRectangle(cornerRadius: w * 0.35, style: .continuous)
+                    .stroke(.white.opacity(0.35), lineWidth: 0.7)
+                    .frame(width: w * 1.9, height: h * 1.24)
+                    .offset(y: 1)
+                    .mask(
+                        Rectangle()
+                            .frame(width: w * 3, height: h * 0.3)
+                            .offset(y: h * 0.62)
+                    )
+
+                // Slot the lever travels in.
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [.black.opacity(0.65), .black.opacity(0.35)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(width: w * 0.42, height: h * 0.94)
+
+                // Lever, pushed to the top position.
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                Color(red: 0.90, green: 0.89, blue: 0.87),
+                                Color(red: 0.48, green: 0.47, blue: 0.45)
+                            ],
+                            center: UnitPoint(x: 0.34, y: 0.28),
+                            startRadius: 0,
+                            endRadius: w * 0.75
+                        )
+                    )
+                    .overlay(Circle().stroke(.black.opacity(0.32), lineWidth: 0.6))
+                    .frame(width: w * 1.05, height: w * 1.05)
+                    .offset(y: -h * 0.26)
+                    .shadow(
+                        color: .black.opacity(0.45),
+                        radius: 1.4,
+                        x: SceneLight.shadowOffset(2.4).width,
+                        y: SceneLight.shadowOffset(2.4).height
+                    )
+            }
+        }
+    }
+}
+
+private struct DeckDetails: View {
+    let corner: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            let W = proxy.size.width
+            let H = proxy.size.height
+
+            // Hinge slots recessed into the top edge: dark where the hole
+            // swallows the light, a bright lip on the far side.
+            HStack(spacing: H * 0.022) {
+                ForEach(0..<2, id: \.self) { _ in
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color(white: 0.04), Color(white: 0.22)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .stroke(.black.opacity(0.45), lineWidth: 0.6)
+                        RoundedRectangle(cornerRadius: 1.5)
+                            .stroke(.white.opacity(0.40), lineWidth: 0.6)
+                            .offset(y: 0.9)
+                            .mask(
+                                Rectangle()
+                                    .frame(height: H * 0.006)
+                                    .offset(y: H * 0.006)
+                            )
+                    }
+                    .frame(width: H * 0.042, height: H * 0.012)
+                }
+            }
+            .position(x: W * 0.76, y: H * 0.018)
+        }
+    }
+}
+
+private struct PanelScrew: View {
+    var body: some View {
+        GeometryReader { proxy in
+            let d = min(proxy.size.width, proxy.size.height)
+            ZStack {
+                Circle()
+                    .fill(.black.opacity(0.35))
+                    .blur(radius: d * 0.10)
+                    .offset(SceneLight.shadowOffset(d * 0.08))
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color(white: 0.68), Color(white: 0.18)],
+                            center: UnitPoint(x: 0.30, y: 0.25),
+                            startRadius: 0,
+                            endRadius: d * 0.7
+                        )
+                    )
+                Capsule()
+                    .fill(.black.opacity(0.55))
+                    .frame(width: d * 0.10, height: d * 0.55)
+                    .rotationEffect(.degrees(32))
+                Circle()
+                    .stroke(.black.opacity(0.35), lineWidth: 0.5)
+            }
+            .frame(width: d, height: d)
+            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+        }
+    }
+}
+
+// MARK: - Shared texture helpers
+
+private struct SurfaceGrain: View {
+    let intensity: Double
+    let seed: Double
+
+    var body: some View {
+        Rectangle()
+            .fill(.gray)
+            .colorEffect(
+                ShaderLibrary.filmGrain(.float(intensity), .float(seed))
+            )
+            .blendMode(.softLight)
     }
 }
 
@@ -252,945 +1588,35 @@ private struct MaterialImperfections: View {
     }
 }
 
-private struct TurntableDeck: View {
-    let item: PlayingItem
-    let snapshotDate: Date
-
-    var body: some View {
-        GeometryReader { proxy in
-            let width = proxy.size.width
-            let height = proxy.size.height
-            let inset = height * 0.022
-            let recordSize = height * 0.94
-            let recordX = width * 0.405
-            let recordY = height * 0.50
-            let panelWidth = width * 0.175
-
-            ZStack {
-                RoundedRectangle(cornerRadius: height * 0.018, style: .continuous)
-                    .fill(Color(white: 0.18))
-                    .offset(y: height * 0.012)
-
-                BrushedMetalDeck(cornerRadius: height * 0.018)
-                    .frame(width: width - inset * 2, height: height - inset * 2)
-                    .shadow(color: .black.opacity(0.46), radius: 4, y: 4)
-
-                PlatterRim()
-                    .frame(width: recordSize * 1.025, height: recordSize * 1.025)
-                    .position(x: recordX, y: recordY)
-
-                SpinningRecord(
-                    item: item,
-                    snapshotDate: snapshotDate
-                )
-                .frame(width: recordSize, height: recordSize)
-                .position(x: recordX, y: recordY)
-
-                ControlPanel()
-                    .frame(width: panelWidth, height: height * 0.92)
-                    .position(
-                        x: width - inset - panelWidth * 0.55,
-                        y: height * 0.50
-                    )
-
-                TonearmAssembly()
-
-                DeckHardware()
-
-                LinearGradient(
-                    colors: [
-                        .white.opacity(0.09),
-                        .clear,
-                        .black.opacity(0.12)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .clipShape(
-                    RoundedRectangle(
-                        cornerRadius: height * 0.018,
-                        style: .continuous
-                    )
-                )
-                .allowsHitTesting(false)
-            }
-        }
-    }
-}
-
-private struct BrushedMetalDeck: View {
-    let cornerRadius: CGFloat
-
-    var body: some View {
-        GeometryReader { proxy in
-            let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-
-            ZStack {
-                shape
-                    .fill(
-                        LinearGradient(
-                            stops: [
-                                .init(color: Color(red: 0.82, green: 0.815, blue: 0.78), location: 0),
-                                .init(color: Color(red: 0.74, green: 0.735, blue: 0.70), location: 0.24),
-                                .init(color: Color(red: 0.68, green: 0.67, blue: 0.63), location: 0.56),
-                                .init(color: Color(red: 0.59, green: 0.58, blue: 0.54), location: 1)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-
-                Image("MetalTexture")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .saturation(0)
-                    .contrast(1.28)
-                    .opacity(0.11)
-                    .blendMode(.multiply)
-
-                Canvas(opaque: false, colorMode: .linear, rendersAsynchronously: true) { context, size in
-                    let spacing = max(2.2, size.height / 180)
-                    var y: CGFloat = 0
-                    var line = 0
-
-                    while y < size.height {
-                        let opacity = line.isMultiple(of: 5) ? 0.028 : 0.013
-                        var path = Path()
-                        path.move(to: CGPoint(x: 0, y: y))
-                        path.addLine(to: CGPoint(x: size.width, y: y + 0.4))
-                        context.stroke(
-                            path,
-                            with: .color(.white.opacity(opacity)),
-                            lineWidth: 0.42
-                        )
-                        y += spacing
-                        line += 1
-                    }
-                }
-
-                MaterialImperfections(
-                    scratchesOpacity: 0.028,
-                    dustOpacity: 0.040
-                )
-
-                MetalAgeMarks()
-
-                LinearGradient(
-                    stops: [
-                        .init(color: .white.opacity(0.17), location: 0),
-                        .init(color: .clear, location: 0.16),
-                        .init(color: .clear, location: 0.74),
-                        .init(color: .black.opacity(0.16), location: 1)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-
-                shape
-                    .stroke(.white.opacity(0.35), lineWidth: 1)
-
-                shape
-                    .inset(by: 2)
-                    .stroke(.black.opacity(0.22), lineWidth: 1)
-            }
-            .clipShape(shape)
-        }
-    }
-}
-
-private struct MetalAgeMarks: View {
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                ForEach(0..<7) { mark in
-                    Ellipse()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    .black.opacity(mark.isMultiple(of: 3) ? 0.08 : 0.045),
-                                    .clear
-                                ],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: proxy.size.width * 0.045
-                            )
-                        )
-                        .frame(
-                            width: proxy.size.width
-                                * (0.035 + materialNoise(mark, salt: 21.4) * 0.08),
-                            height: proxy.size.height
-                                * (0.018 + materialNoise(mark, salt: 22.8) * 0.045)
-                        )
-                        .position(
-                            x: proxy.size.width
-                                * (0.04 + materialNoise(mark, salt: 23.6) * 0.92),
-                            y: proxy.size.height
-                                * (0.05 + materialNoise(mark, salt: 24.7) * 0.90)
-                        )
-                        .blur(radius: 3)
-                }
-            }
-        }
-        .blendMode(.multiply)
-        .allowsHitTesting(false)
-    }
-}
-
-private struct PlatterRim: View {
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    RadialGradient(
-                        stops: [
-                            .init(color: Color(white: 0.19), location: 0.84),
-                            .init(color: Color(white: 0.55), location: 0.89),
-                            .init(color: Color(white: 0.16), location: 0.94),
-                            .init(color: Color(white: 0.055), location: 1)
-                        ],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: 240
-                    )
-                )
-
-            Circle()
-                .stroke(
-                    AngularGradient(
-                        colors: [
-                            .white.opacity(0.52),
-                            .black.opacity(0.42),
-                            .white.opacity(0.18),
-                            .black.opacity(0.30),
-                            .white.opacity(0.52)
-                        ],
-                        center: .center
-                    ),
-                    lineWidth: 2
-                )
-                .padding(2)
-        }
-        .shadow(color: .black.opacity(0.43), radius: 8, y: 6)
-    }
-}
-
-private struct SpinningRecord: View {
-    let item: PlayingItem
-    let snapshotDate: Date
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: !item.isPlaying)) { context in
-            VinylDisc(artworkURL: item.artworkURL)
-                .rotationEffect(rotation(at: context.date))
-        }
-    }
-
-    private func rotation(at date: Date) -> Angle {
-        let snapshotProgress = Double(item.progressMilliseconds ?? 0) / 1_000
-        let elapsed = item.isPlaying ? max(0, date.timeIntervalSince(snapshotDate)) : 0
-        return .degrees((snapshotProgress + elapsed) * 30)
-    }
-}
-
-private struct VinylDisc: View {
-    let artworkURL: URL?
-
-    var body: some View {
-        GeometryReader { proxy in
-            let diameter = min(proxy.size.width, proxy.size.height)
-
-            ZStack {
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            stops: [
-                                .init(color: Color(white: 0.105), location: 0),
-                                .init(color: Color(white: 0.055), location: 0.25),
-                                .init(color: Color(white: 0.018), location: 0.72),
-                                .init(color: .black, location: 1)
-                            ],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: diameter * 0.50
-                        )
-                    )
-
-                Canvas(opaque: false, colorMode: .linear, rendersAsynchronously: true) { context, size in
-                    let center = CGPoint(x: size.width / 2, y: size.height / 2)
-
-                    for ring in 0..<58 {
-                        let irregularity = materialNoise(ring, salt: 15.2) * 0.0018
-                        let radius = size.width
-                            * (0.172 + CGFloat(ring) * 0.00555 + irregularity)
-                        let bounds = CGRect(
-                            x: center.x - radius,
-                            y: center.y - radius,
-                            width: radius * 2,
-                            height: radius * 2
-                        )
-                        context.stroke(
-                            Path(ellipseIn: bounds),
-                            with: .color(
-                                .white.opacity(
-                                    ring.isMultiple(of: 9)
-                                        ? 0.10
-                                        : 0.020 + Double(materialNoise(ring, salt: 16.4)) * 0.025
-                                )
-                            ),
-                            lineWidth: ring.isMultiple(of: 9) ? 1.05 : 0.38
-                        )
-                    }
-
-                    for dust in 0..<42 {
-                        let angle = materialNoise(dust, salt: 8.1) * .pi * 2
-                        let radius = size.width
-                            * (0.19 + materialNoise(dust, salt: 9.2) * 0.285)
-                        let x = center.x + cos(angle) * radius
-                        let y = center.y + sin(angle) * radius
-                        let speck = CGRect(
-                            x: x,
-                            y: y,
-                            width: 0.6 + materialNoise(dust, salt: 10.2) * 1.5,
-                            height: 0.35 + materialNoise(dust, salt: 11.3) * 0.7
-                        )
-                        context.fill(
-                            Path(ellipseIn: speck),
-                            with: .color(
-                                .white.opacity(
-                                    0.08 + Double(materialNoise(dust, salt: 12.2)) * 0.13
-                                )
-                            )
-                        )
-                    }
-                }
-
-                MaterialImperfections(
-                    scratchesOpacity: 0.050,
-                    dustOpacity: 0.075
-                )
-                .clipShape(Circle())
-                .padding(diameter * 0.012)
-
-                VinylPatina()
-                    .padding(diameter * 0.012)
-
-                RecordWear()
-                    .padding(diameter * 0.018)
-
-                Circle()
-                    .fill(
-                        AngularGradient(
-                            stops: [
-                                .init(color: .clear, location: 0),
-                                .init(color: .white.opacity(0.13), location: 0.09),
-                                .init(color: .clear, location: 0.21),
-                                .init(color: .clear, location: 0.56),
-                                .init(color: .white.opacity(0.055), location: 0.69),
-                                .init(color: .clear, location: 0.78),
-                                .init(color: .clear, location: 1)
-                            ],
-                            center: .center
-                        )
-                    )
-                    .blendMode(.screen)
-
-                WallpaperArtwork(url: artworkURL)
-                    .frame(width: diameter * 0.285, height: diameter * 0.285)
-                    .clipShape(Circle())
-                    .overlay {
-                        Circle()
-                            .stroke(.black.opacity(0.50), lineWidth: 1.2)
-                    }
-
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [.white, Color(white: 0.38)],
-                            center: .topLeading,
-                            startRadius: 0,
-                            endRadius: diameter * 0.025
-                        )
-                    )
-                    .frame(width: diameter * 0.024, height: diameter * 0.024)
-                    .shadow(color: .black.opacity(0.6), radius: 1, y: 1)
-            }
-            .frame(width: diameter, height: diameter)
-            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
-            .compositingGroup()
-        }
-    }
-}
-
-private struct VinylPatina: View {
-    var body: some View {
-        GeometryReader { proxy in
-            let diameter = min(proxy.size.width, proxy.size.height)
-
-            ZStack {
-                ForEach(0..<7) { band in
-                    Circle()
-                        .stroke(
-                            AngularGradient(
-                                stops: [
-                                    .init(color: .clear, location: 0),
-                                    .init(
-                                        color: .white.opacity(
-                                            0.018
-                                                + Double(
-                                                    materialNoise(
-                                                        band,
-                                                        salt: 27.1
-                                                    )
-                                                ) * 0.035
-                                        ),
-                                        location: 0.17
-                                    ),
-                                    .init(color: .clear, location: 0.34),
-                                    .init(color: .clear, location: 0.66),
-                                    .init(
-                                        color: .white.opacity(
-                                            band.isMultiple(of: 3) ? 0.045 : 0.022
-                                        ),
-                                        location: 0.80
-                                    ),
-                                    .init(color: .clear, location: 1)
-                                ],
-                                center: .center
-                            ),
-                            lineWidth: diameter
-                                * (0.006 + materialNoise(band, salt: 28.4) * 0.010)
-                        )
-                        .padding(
-                            diameter
-                                * (0.055 + CGFloat(band) * 0.038)
-                        )
-                        .blur(radius: 0.55)
-                }
-
-                Circle()
-                    .stroke(.white.opacity(0.085), lineWidth: 1.1)
-                    .padding(diameter * 0.325)
-
-                Circle()
-                    .stroke(.black.opacity(0.24), lineWidth: diameter * 0.012)
-                    .padding(diameter * 0.292)
-            }
-            .frame(width: diameter, height: diameter)
-            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
-        }
-        .allowsHitTesting(false)
-    }
-}
-
-private struct RecordWear: View {
-    var body: some View {
-        GeometryReader { proxy in
-            Canvas(opaque: false, colorMode: .linear, rendersAsynchronously: true) { context, size in
-                let center = CGPoint(x: size.width / 2, y: size.height / 2)
-
-                for scratch in 0..<5 {
-                    let radius = size.width
-                        * (0.27 + materialNoise(scratch, salt: 18.6) * 0.20)
-                    let start = Angle.degrees(
-                        Double(materialNoise(scratch, salt: 19.4) * 330)
-                    )
-                    let sweep = 8
-                        + Double(materialNoise(scratch, salt: 20.2) * 34)
-                    var path = Path()
-                    path.addArc(
-                        center: center,
-                        radius: radius,
-                        startAngle: start,
-                        endAngle: start + .degrees(sweep),
-                        clockwise: false
-                    )
-                    context.stroke(
-                        path,
-                        with: .color(.white.opacity(scratch == 2 ? 0.13 : 0.07)),
-                        lineWidth: scratch == 2 ? 0.72 : 0.46
-                    )
-                }
-            }
-            .frame(width: proxy.size.width, height: proxy.size.height)
-        }
-        .allowsHitTesting(false)
-    }
-}
-
-private struct TonearmAssembly: View {
-    var body: some View {
-        GeometryReader { proxy in
-            let width = proxy.size.width
-            let height = proxy.size.height
-            let pivot = CGPoint(x: width * 0.865, y: height * 0.105)
-            let stylus = CGPoint(x: width * 0.605, y: height * 0.715)
-            let thickness = height * 0.014
-
-            let armPath = Path { path in
-                path.move(to: pivot)
-                path.addCurve(
-                    to: stylus,
-                    control1: CGPoint(x: width * 0.82, y: height * 0.30),
-                    control2: CGPoint(x: width * 0.69, y: height * 0.60)
-                )
-            }
-
-            ZStack {
-                armPath
-                    .stroke(
-                        .black.opacity(0.34),
-                        style: StrokeStyle(
-                            lineWidth: thickness * 1.85,
-                            lineCap: .round
-                        )
-                    )
-                    .offset(x: 3, y: 5)
-                    .blur(radius: 2.5)
-
-                armPath
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.86, green: 0.85, blue: 0.81),
-                                Color(white: 0.43),
-                                Color(red: 0.92, green: 0.91, blue: 0.87)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ),
-                        style: StrokeStyle(
-                            lineWidth: thickness,
-                            lineCap: .round
-                        )
-                    )
-
-                ZStack {
-                    Circle()
-                        .fill(Color(white: 0.075))
-                    Circle()
-                        .stroke(
-                            AngularGradient(
-                                colors: [
-                                    .white.opacity(0.65),
-                                    .black.opacity(0.60),
-                                    .white.opacity(0.24),
-                                    .white.opacity(0.65)
-                                ],
-                                center: .center
-                            ),
-                            lineWidth: height * 0.013
-                        )
-                        .padding(height * 0.010)
-                    Circle()
-                        .fill(Color(white: 0.19))
-                        .padding(height * 0.045)
-                }
-                .frame(width: height * 0.135, height: height * 0.135)
-                .position(pivot)
-                .shadow(color: .black.opacity(0.42), radius: 6, y: 4)
-
-                RoundedRectangle(cornerRadius: height * 0.016, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(white: 0.64),
-                                Color(white: 0.18),
-                                Color(white: 0.48)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(width: height * 0.13, height: height * 0.067)
-                    .rotationEffect(.degrees(18))
-                    .position(
-                        x: pivot.x + height * 0.055,
-                        y: pivot.y - height * 0.050
-                    )
-                    .shadow(color: .black.opacity(0.34), radius: 3, y: 3)
-
-                Headshell()
-                    .frame(width: height * 0.12, height: height * 0.075)
-                    .rotationEffect(.degrees(30))
-                    .position(stylus)
-                    .shadow(color: .black.opacity(0.46), radius: 4, y: 3)
-
-                Capsule()
-                    .fill(Color(red: 0.52, green: 0.075, blue: 0.050))
-                    .frame(width: height * 0.006, height: height * 0.050)
-                    .rotationEffect(.degrees(30))
-                    .position(
-                        x: stylus.x - height * 0.034,
-                        y: stylus.y + height * 0.045
-                    )
-            }
-        }
-    }
-}
-
-private struct Headshell: View {
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                RoundedRectangle(cornerRadius: proxy.size.height * 0.20)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(white: 0.16),
-                                Color(white: 0.025)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-
-                MaterialImperfections(
-                    scratchesOpacity: 0.085,
-                    dustOpacity: 0.045
-                )
-                .clipShape(
-                    RoundedRectangle(
-                        cornerRadius: proxy.size.height * 0.20
-                    )
-                )
-
-                HStack(spacing: proxy.size.width * 0.11) {
-                    Capsule()
-                        .fill(.white.opacity(0.20))
-                    Capsule()
-                        .fill(.white.opacity(0.20))
-                }
-                .frame(width: proxy.size.width * 0.42, height: proxy.size.height * 0.16)
-            }
-        }
-    }
-}
-
-private struct ControlPanel: View {
-    var body: some View {
-        GeometryReader { proxy in
-            let width = proxy.size.width
-            let height = proxy.size.height
-
-            ZStack {
-                RoundedRectangle(cornerRadius: width * 0.065, style: .continuous)
-                    .fill(Color(white: 0.045))
-                    .overlay {
-                        Image("LeatherTexture")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: proxy.size.width, height: proxy.size.height)
-                            .contrast(1.45)
-                            .brightness(-0.10)
-                            .opacity(0.58)
-                            .blendMode(.softLight)
-                            .clipShape(
-                                RoundedRectangle(
-                                    cornerRadius: width * 0.065,
-                                    style: .continuous
-                                )
-                            )
-                    }
-                    .overlay {
-                        MaterialImperfections(
-                            scratchesOpacity: 0.035,
-                            dustOpacity: 0.050
-                        )
-                        .clipShape(
-                            RoundedRectangle(
-                                cornerRadius: width * 0.065,
-                                style: .continuous
-                            )
-                        )
-                    }
-                    .overlay {
-                        RoundedRectangle(
-                            cornerRadius: width * 0.065,
-                            style: .continuous
-                        )
-                        .stroke(.white.opacity(0.10), lineWidth: 1)
-                    }
-
-                PanelScrew()
-                    .frame(width: width * 0.13, height: width * 0.13)
-                    .position(x: width * 0.50, y: height * 0.065)
-
-                VStack(spacing: height * 0.018) {
-                    Text("33")
-                    Capsule()
-                        .frame(width: width * 0.038, height: height * 0.16)
-                    Text("45")
-                }
-                .font(.system(size: max(7, width * 0.09), weight: .regular))
-                .foregroundStyle(.white.opacity(0.42))
-                .position(x: width * 0.28, y: height * 0.31)
-
-                Capsule()
-                    .fill(.black.opacity(0.60))
-                    .frame(width: width * 0.10, height: height * 0.22)
-                    .overlay(alignment: .top) {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color(white: 0.84),
-                                        Color(white: 0.31)
-                                    ],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: width * 0.28, height: height * 0.042)
-                            .offset(y: height * 0.055)
-                    }
-                    .position(x: width * 0.67, y: height * 0.33)
-
-                SpeedDial()
-                    .frame(width: width * 0.67, height: width * 0.67)
-                    .position(x: width * 0.51, y: height * 0.72)
-
-                HStack(spacing: width * 0.19) {
-                    Text("–")
-                    Text("+")
-                }
-                .font(.system(size: max(8, width * 0.13), weight: .regular))
-                .foregroundStyle(.white.opacity(0.48))
-                .position(x: width * 0.50, y: height * 0.865)
-
-                PanelScrew()
-                    .frame(width: width * 0.13, height: width * 0.13)
-                    .position(x: width * 0.50, y: height * 0.945)
-            }
-        }
-    }
-}
-
-private struct PanelScrew: View {
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [Color(white: 0.52), Color(white: 0.12)],
-                        center: .topLeading,
-                        startRadius: 0,
-                        endRadius: 12
-                    )
-                )
-            Capsule()
-                .fill(.black.opacity(0.55))
-                .frame(width: 2, height: 8)
-                .rotationEffect(.degrees(32))
-        }
-        .shadow(color: .black.opacity(0.40), radius: 1, y: 1)
-    }
-}
-
-private struct SpeedDial: View {
-    var body: some View {
-        GeometryReader { proxy in
-            let size = min(proxy.size.width, proxy.size.height)
-
-            ZStack {
-                ForEach(0..<12) { tick in
-                    Capsule()
-                        .fill(
-                            tick == 2
-                                ? Color(red: 0.40, green: 0.48, blue: 0.25).opacity(0.72)
-                                : tick == 5 || tick == 8
-                                    ? Color(red: 0.60, green: 0.22, blue: 0.13).opacity(0.68)
-                                    : .white.opacity(tick.isMultiple(of: 3) ? 0.42 : 0.22)
-                        )
-                        .frame(width: 1, height: size * 0.075)
-                        .offset(y: -size * 0.42)
-                        .rotationEffect(.degrees(Double(tick) * 30))
-                }
-
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                Color(red: 0.85, green: 0.84, blue: 0.72),
-                                Color(red: 0.65, green: 0.63, blue: 0.52)
-                            ],
-                            center: .topLeading,
-                            startRadius: 0,
-                            endRadius: size * 0.45
-                        )
-                    )
-                    .padding(size * 0.10)
-
-                Circle()
-                    .fill(Color(white: 0.13))
-                    .padding(size * 0.25)
-
-                Capsule()
-                    .fill(.white.opacity(0.78))
-                    .frame(width: 2, height: size * 0.16)
-                    .offset(y: -size * 0.13)
-            }
-            .frame(width: size, height: size)
-            .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
-            .shadow(color: .black.opacity(0.36), radius: 3, y: 2)
-        }
-    }
-}
-
-private struct DeckHardware: View {
-    var body: some View {
-        GeometryReader { proxy in
-            let width = proxy.size.width
-            let height = proxy.size.height
-
-            ZStack {
-                let screwPoints = [
-                    CGPoint(x: width * 0.066, y: height * 0.085),
-                    CGPoint(x: width * 0.066, y: height * 0.915),
-                    CGPoint(x: width * 0.936, y: height * 0.085),
-                    CGPoint(x: width * 0.936, y: height * 0.915)
-                ]
-
-                ForEach(Array(screwPoints.enumerated()), id: \.offset) { _, point in
-                    PanelScrew()
-                        .frame(width: height * 0.030, height: height * 0.030)
-                        .position(point)
-                }
-
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.77, green: 0.055, blue: 0.028),
-                                Color(red: 1.0, green: 0.25, blue: 0.10)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(width: height * 0.080, height: height * 0.028)
-                    .position(x: width * 0.735, y: height * 0.905)
-                    .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
-
-                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                    .fill(Color(white: 0.055))
-                    .frame(width: width * 0.135, height: height * 0.044)
-                    .overlay {
-                        HStack(spacing: height * 0.010) {
-                            Circle()
-                                .stroke(.white.opacity(0.52), lineWidth: 1)
-                                .frame(width: height * 0.022, height: height * 0.022)
-
-                            Text("33 studio")
-                                .font(
-                                    .system(
-                                        size: max(7, height * 0.022),
-                                        weight: .regular,
-                                        design: .rounded
-                                    )
-                                )
-                                .foregroundStyle(.white.opacity(0.62))
-                        }
-                    }
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                            .stroke(.white.opacity(0.18), lineWidth: 0.7)
-                    }
-                    .position(x: width * 0.105, y: height * 0.905)
-                    .rotationEffect(.degrees(-0.6))
-                    .shadow(color: .black.opacity(0.24), radius: 1, y: 1)
-
-                HStack(spacing: height * 0.018) {
-                    ForEach(0..<2) { hinge in
-                        RoundedRectangle(cornerRadius: 1)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color(white: 0.76),
-                                        Color(white: 0.32)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 1)
-                                    .stroke(.black.opacity(0.26), lineWidth: 0.7)
-                            }
-                            .frame(width: height * 0.055, height: height * 0.018)
-                    }
-                }
-                .position(x: width * 0.78, y: height * 0.035)
-            }
-        }
-    }
-}
-
-private struct AmbientWindowLight: View {
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 5.0)) { timeline in
-            GeometryReader { proxy in
-                let time = timeline.date.timeIntervalSinceReferenceDate
-                let drift = sin(time * 0.075) * 0.018
-                let warmth = 0.94
-                    + sin(time * 0.34) * 0.025
-                    + sin(time * 0.71) * 0.010
-
-                ZStack {
-                    RadialGradient(
-                        stops: [
-                            .init(
-                                color: Color(
-                                    red: 1.0,
-                                    green: 0.73,
-                                    blue: 0.43
-                                ).opacity(0.15),
-                                location: 0
-                            ),
-                            .init(
-                                color: Color(
-                                    red: 1.0,
-                                    green: 0.82,
-                                    blue: 0.61
-                                ).opacity(0.060),
-                                location: 0.38
-                            ),
-                            .init(color: .clear, location: 0.78)
-                        ],
-                        center: UnitPoint(x: 0.18 + drift, y: 0.15),
-                        startRadius: 0,
-                        endRadius: max(proxy.size.width, proxy.size.height) * 0.70
-                    )
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .blendMode(.screen)
-
-                    RadialGradient(
-                        colors: [
-                            .black.opacity(0.055),
-                            .clear
-                        ],
-                        center: UnitPoint(
-                            x: 0.73 - drift * 0.5,
-                            y: 0.68 + drift * 0.4
-                        ),
-                        startRadius: 0,
-                        endRadius: max(proxy.size.width, proxy.size.height) * 0.58
-                    )
-                    .frame(width: proxy.size.width, height: proxy.size.height)
-                    .blendMode(.multiply)
-                }
-                .opacity(warmth)
-                .compositingGroup()
-            }
-        }
-        .allowsHitTesting(false)
-    }
-}
-
 private struct WallpaperArtwork: View {
     let url: URL?
 
+#if DEBUG
+    private static let overrideImage: NSImage? = ProcessInfo.processInfo
+        .environment["VINYL_SNAPSHOT_ART"]
+        .flatMap { NSImage(contentsOfFile: $0) }
+#endif
+
     var body: some View {
+        Group {
+#if DEBUG
+            if let override = Self.overrideImage {
+                Image(nsImage: override)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFill()
+            } else {
+                remote
+            }
+#else
+            remote
+#endif
+        }
+        .clipped()
+    }
+
+    @ViewBuilder
+    private var remote: some View {
         Group {
             if let url {
                 AsyncImage(

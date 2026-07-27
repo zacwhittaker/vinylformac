@@ -7,6 +7,7 @@ struct MenuBarContent: View {
 
     var body: some View {
         Button("Show Vinyl") {
+            NSApp.setActivationPolicy(.regular)
             openWindow(id: "main")
             NSApp.activate(ignoringOtherApps: true)
         }

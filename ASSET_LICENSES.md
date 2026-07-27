@@ -48,3 +48,12 @@ information is retained here for provenance.
 - Author: Lennart Demes / ambientCG
 - Licence: CC0 1.0 Universal
 - Downloaded: 2026-07-26
+
+## Wood 067 (walnut table)
+
+- Source: ambientCG
+- Asset: https://ambientcg.com/view?id=Wood067
+- Files: `Wood067_2K-JPG_Color.jpg`, `Wood067_2K-JPG_Roughness.jpg`
+- Author: Lennart Demes / ambientCG
+- Licence: CC0 1.0 Universal
+- Downloaded: 2026-07-26

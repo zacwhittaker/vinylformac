@@ -1,4 +1,5 @@
 import Foundation
+import ServiceManagement
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -106,6 +107,7 @@ final class AppModel: ObservableObject {
                 try await spotify.connect(clientID: clientID)
                 connectionState = .connected
                 statusMessage = "Spotify connected."
+                try? SMAppService.mainApp.register()
                 startPolling()
             } catch {
                 connectionState = .disconnected

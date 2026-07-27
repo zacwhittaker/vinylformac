@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var showDisconnectConfirmation = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 18),
@@ -29,6 +30,15 @@ struct ContentView: View {
         }
         .frame(minWidth: 900, minHeight: 680)
         .preferredColorScheme(.dark)
+        .animation(.easeInOut(duration: 0.35), value: model.connectionState)
+        .alert("Disconnect Spotify?", isPresented: $showDisconnectConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Disconnect", role: .destructive) {
+                model.disconnect()
+            }
+        } message: {
+            Text("The desktop artwork will stop and you'll need to sign in again to reconnect.")
+        }
     }
 
     private var ambientBackdrop: some View {
@@ -58,7 +68,7 @@ struct ContentView: View {
                             Divider()
                         }
                         Button("Disconnect Spotify", role: .destructive) {
-                            model.disconnect()
+                            showDisconnectConfirmation = true
                         }
                     } label: {
                         Image(systemName: "ellipsis")
@@ -72,8 +82,10 @@ struct ContentView: View {
                 .padding(.trailing, 8)
                 .padding(.vertical, 8)
                 .liquidGlass(in: Capsule())
+                .transition(.opacity)
             } else {
                 connectButton
+                    .transition(.opacity)
             }
         }
     }
@@ -82,8 +94,10 @@ struct ContentView: View {
     private var spotifySection: some View {
         if model.isConnected {
             nowPlayingBar
+                .transition(.opacity.combined(with: .move(edge: .top)))
         } else if let errorMessage = model.errorMessage {
             errorView(errorMessage)
+                .transition(.opacity)
         }
     }
 
@@ -132,13 +146,7 @@ struct ContentView: View {
                     .foregroundStyle(.white.opacity(0.64))
                     .lineLimit(1)
 
-                if let progress = model.currentItem?.progress {
-                    ProgressView(value: progress)
-                        .progressViewStyle(.linear)
-                        .tint(.white.opacity(0.84))
-                        .frame(maxWidth: 360)
-                        .padding(.top, 5)
-                }
+                liveProgressBar
             }
 
             Spacer()
@@ -168,6 +176,42 @@ struct ContentView: View {
             if let errorMessage = model.errorMessage {
                 errorView(errorMessage)
                     .offset(y: 27)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var liveProgressBar: some View {
+        if let item = model.currentItem,
+           let durationMs = item.durationMilliseconds,
+           let progressMs = item.progressMilliseconds,
+           durationMs > 0 {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let currentMs = Self.interpolatedMs(
+                    progressMs: progressMs,
+                    isPlaying: item.isPlaying,
+                    lastUpdated: model.lastUpdated,
+                    now: context.date,
+                    durationMs: durationMs
+                )
+                let fraction = Double(currentMs) / Double(durationMs)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    ProgressView(value: fraction)
+                        .progressViewStyle(.linear)
+                        .tint(.white.opacity(0.84))
+                        .frame(maxWidth: 360)
+
+                    HStack {
+                        Text(Self.formatTime(currentMs))
+                        Spacer()
+                        Text(Self.formatTime(durationMs))
+                    }
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.40))
+                    .frame(maxWidth: 360)
+                }
+                .padding(.top, 5)
             }
         }
     }
@@ -251,11 +295,15 @@ struct ContentView: View {
     private var currentArtwork: some View {
         Group {
             if let url = model.currentItem?.artworkURL {
-                AsyncImage(url: url) { phase in
+                AsyncImage(
+                    url: url,
+                    transaction: Transaction(animation: .easeInOut(duration: 0.5))
+                ) { phase in
                     if case .success(let image) = phase {
                         image
                             .resizable()
                             .scaledToFill()
+                            .transition(.opacity)
                     } else {
                         artworkPlaceholder
                     }
@@ -289,6 +337,24 @@ struct ContentView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    private static func interpolatedMs(
+        progressMs: Int,
+        isPlaying: Bool,
+        lastUpdated: Date?,
+        now: Date,
+        durationMs: Int
+    ) -> Int {
+        guard isPlaying, let lastUpdated else { return progressMs }
+        let elapsed = Int(now.timeIntervalSince(lastUpdated) * 1000)
+        return min(progressMs + elapsed, durationMs)
+    }
+
+    private static func formatTime(_ milliseconds: Int) -> String {
+        let totalSeconds = max(milliseconds / 1000, 0)
+        let minutes = totalSeconds / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
 }
 
 private struct SetupPreview: View {
