@@ -1,0 +1,291 @@
+<title>Vinyl — Album art on your desktop</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Vinyl puts your Spotify album art on your Mac desktop as a photorealistic turntable wallpaper.">
+
+<style>
+  :root {
+    --bg: #0B0908;
+    --surface: #161210;
+    --text: #E4DDD4;
+    --text-dim: #7A6F63;
+    --accent: #C9AD8A;
+    --accent-glow: rgba(201, 173, 138, 0.12);
+    --green: #36D47C;
+    --groove: rgba(255, 255, 255, 0.025);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---- NAV ---- */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 28px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  nav .wordmark {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  nav a {
+    font-size: 13px;
+    color: var(--text-dim);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  nav a:hover { color: var(--text); }
+
+  /* ---- HERO ---- */
+  .hero {
+    padding: 100px 0 80px;
+    text-align: center;
+    position: relative;
+  }
+
+  .record-motif {
+    width: 160px;
+    height: 160px;
+    margin: 0 auto 48px;
+    position: relative;
+    opacity: 0.7;
+  }
+  .record-motif .groove {
+    position: absolute;
+    border: 1px solid var(--groove);
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .record-motif .label {
+    position: absolute;
+    width: 36px; height: 36px;
+    background: radial-gradient(circle, var(--accent) 0%, rgba(201,173,138,0.3) 100%);
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .record-motif .spindle {
+    position: absolute;
+    width: 6px; height: 6px;
+    background: var(--bg);
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+  }
+
+  h1 {
+    font-family: "New York", "Iowan Old Style", Georgia, serif;
+    font-size: clamp(48px, 8vw, 72px);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 20px;
+    text-wrap: balance;
+  }
+
+  .tagline {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    max-width: 440px;
+    margin: 0 auto 44px;
+    text-wrap: balance;
+  }
+
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--text);
+    color: var(--bg);
+    font-size: 15px;
+    font-weight: 500;
+    padding: 14px 32px;
+    border-radius: 80px;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .cta:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 32px var(--accent-glow);
+  }
+  .cta .icon {
+    width: 16px; height: 16px;
+    opacity: 0.5;
+  }
+
+  .cta-note {
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
+
+  /* ---- FEATURES ---- */
+  .features {
+    padding: 64px 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .feature {
+    padding: 28px;
+    background: var(--surface);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .feature .icon-row {
+    font-size: 22px;
+    margin-bottom: 14px;
+    opacity: 0.7;
+  }
+  .feature h3 {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .feature p {
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+
+  /* ---- SPOTIFY NOTE ---- */
+  .spotify-note {
+    padding: 32px 0 80px;
+    text-align: center;
+  }
+  .spotify-note .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--text-dim);
+    background: rgba(54, 212, 124, 0.08);
+    border: 1px solid rgba(54, 212, 124, 0.15);
+    padding: 8px 16px;
+    border-radius: 80px;
+    margin-bottom: 16px;
+  }
+  .spotify-note .dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+  }
+  .spotify-note p {
+    font-size: 13px;
+    color: var(--text-dim);
+    max-width: 420px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+  .spotify-note a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .spotify-note a:hover { text-decoration: underline; }
+
+  /* ---- FOOTER ---- */
+  footer {
+    padding: 32px 0;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-dim);
+    opacity: 0.5;
+  }
+  footer a { color: var(--text-dim); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+
+  @media (max-width: 560px) {
+    .features { grid-template-columns: 1fr; }
+    .hero { padding: 72px 0 56px; }
+  }
+</style>
+
+<div class="page">
+  <nav>
+    <span class="wordmark">Vinyl</span>
+    <a href="https://github.com/shhivv/vinylformac">GitHub</a>
+  </nav>
+
+  <section class="hero">
+    <div class="record-motif" aria-hidden="true">
+      <div class="spindle"></div>
+      <div class="label"></div>
+      <div class="groove" style="width:56px;height:56px"></div>
+      <div class="groove" style="width:76px;height:76px"></div>
+      <div class="groove" style="width:96px;height:96px"></div>
+      <div class="groove" style="width:116px;height:116px"></div>
+      <div class="groove" style="width:136px;height:136px"></div>
+      <div class="groove" style="width:156px;height:156px"></div>
+    </div>
+
+    <h1>Album art on your desktop</h1>
+    <p class="tagline">Vinyl turns your current Spotify track into a photorealistic turntable wallpaper on your Mac.</p>
+
+    <a class="cta" href="https://github.com/shhivv/vinylformac/releases/latest/download/Vinyl.dmg">
+      <svg class="icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 12L3 7h3V2h4v5h3L8 12z"/><path d="M2 13h12v1.5H2z"/></svg>
+      Download for Mac
+    </a>
+    <p class="cta-note">macOS Sonoma or later &middot; 13 MB</p>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <div class="icon-row">&#127926;</div>
+      <h3>Live turntable</h3>
+      <p>A detailed scene with spinning vinyl, tonearm, and your album art on the sleeve and label — all rendered in real time.</p>
+    </div>
+    <div class="feature">
+      <div class="icon-row">&#9654;&#65039;</div>
+      <h3>Follows your music</h3>
+      <p>Artwork updates instantly when you change tracks. The progress bar, elapsed time, and record rotation all stay in sync.</p>
+    </div>
+    <div class="feature">
+      <div class="icon-row">&#128421;</div>
+      <h3>Lives in the menu bar</h3>
+      <p>Starts silently at login. No dock icon, no window — just your wallpaper and a quiet menu bar icon for controls.</p>
+    </div>
+    <div class="feature">
+      <div class="icon-row">&#127912;</div>
+      <h3>Click-through</h3>
+      <p>The wallpaper sits behind your icons and windows. It never gets in the way — it just makes your desktop yours.</p>
+    </div>
+  </section>
+
+  <section class="spotify-note">
+    <div class="pill">
+      <span class="dot"></span>
+      Spotify connected
+    </div>
+    <p>Vinyl connects to Spotify with your own API credentials. Create a free app on the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify Developer Dashboard</a>, and Vinyl handles the rest.</p>
+  </section>
+
+  <footer>
+    <span>Built by <a href="https://shivs.me">Shiv</a></span>
+    <a href="https://github.com/shhivv/vinylformac">Source</a>
+  </footer>
+</div>

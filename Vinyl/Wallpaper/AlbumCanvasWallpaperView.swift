@@ -87,14 +87,6 @@ struct AlbumCanvasWallpaperView: View {
                 SurfaceGrain(intensity: 0.07, seed: 11)
                     .allowsHitTesting(false)
 
-                // macOS brightens and blurs the wallpaper beneath its
-                // translucent menu bar. A uniform backing here prevents the
-                // table's light variation from turning into a pale gradient.
-                Rectangle()
-                    .fill(Color(red: 0.34, green: 0.255, blue: 0.19))
-                    .frame(width: w, height: h * 0.045)
-                    .position(x: w / 2, y: h * 0.0225)
-                    .allowsHitTesting(false)
             }
             .frame(width: w, height: h)
             .clipped()
@@ -1025,11 +1017,11 @@ private struct TonearmAssembly: View {
                 Headshell(
                     length: headshellLength,
                     height: H * 0.048,
-                    angle: armAngle + .degrees(7)
+                    angle: armAngle
                 )
                 .position(
-                    x: stylus.x - armUnit.dx * headshellLength * 0.30,
-                    y: stylus.y - armUnit.dy * headshellLength * 0.30
+                    x: stylus.x - armUnit.dx * headshellLength * 0.35,
+                    y: stylus.y - armUnit.dy * headshellLength * 0.35
                 )
                 .shadow(
                     color: .black.opacity(0.42),
@@ -1111,9 +1103,9 @@ private struct PivotTower: View {
 
     var body: some View {
         let H = height
-        let flangeD = H * 0.150
-        let ringD = H * 0.100
-        let capD = H * 0.058
+        let flangeD = H * 0.105
+        let ringD = H * 0.070
+        let capD = H * 0.040
 
         ZStack {
             // Whole tower throws one soft shadow onto the deck face.
@@ -1280,11 +1272,6 @@ private struct ControlCluster: View {
                     .frame(width: H * 0.128, height: H * 0.128)
                     .position(x: clusterX, y: H * 0.770)
 
-                EngravedText("33", size: H * 0.018)
-                    .position(x: clusterX - W * 0.026, y: H * 0.672)
-                EngravedText("45", size: H * 0.018)
-                    .position(x: clusterX + W * 0.026, y: H * 0.672)
-
                 ToggleSwitch()
                     .frame(width: H * 0.029, height: H * 0.085)
                     .position(x: clusterX - W * 0.042, y: H * 0.485)
@@ -1302,28 +1289,6 @@ private struct ControlCluster: View {
     }
 }
 
-private struct EngravedText: View {
-    let text: String
-    let size: CGFloat
-
-    init(_ text: String, size: CGFloat) {
-        self.text = text
-        self.size = size
-    }
-
-    var body: some View {
-        ZStack {
-            styled.foregroundStyle(.white.opacity(0.45)).offset(x: 0.4, y: 0.5)
-            styled.foregroundStyle(.black.opacity(0.55))
-        }
-    }
-
-    private var styled: Text {
-        Text(text)
-            .font(.system(size: max(6, size), weight: .regular))
-            .kerning(size * 0.10)
-    }
-}
 
 private struct SpeedKnob: View {
     var body: some View {
