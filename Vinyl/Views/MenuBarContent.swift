@@ -14,32 +14,30 @@ struct MenuBarContent: View {
 
         Divider()
 
-        if model.isConnected {
-            if let item = model.currentItem {
-                Text(item.title)
-                Text(item.artist)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Nothing playing")
-                    .foregroundStyle(.secondary)
-            }
-
-            Toggle(
-                "Artwork on Desktop",
-                isOn: Binding(
-                    get: { model.isWallpaperEnabled },
-                    set: { model.setWallpaperEnabled($0) }
-                )
-            )
-
-            Button("Refresh Now") {
-                model.refresh()
-            }
-            .disabled(model.isRefreshing)
+        if let item = model.currentItem {
+            Text(item.title)
+            Text(item.artist)
+                .foregroundStyle(.secondary)
+        } else if model.isSpotifyRunning {
+            Text("Nothing playing")
+                .foregroundStyle(.secondary)
         } else {
-            Text("Spotify not connected")
+            Text("Spotify not running")
                 .foregroundStyle(.secondary)
         }
+
+        Toggle(
+            "Artwork on Desktop",
+            isOn: Binding(
+                get: { model.isWallpaperEnabled },
+                set: { model.setWallpaperEnabled($0) }
+            )
+        )
+
+        Button("Refresh Now") {
+            model.refresh()
+        }
+        .disabled(model.isRefreshing)
 
         Divider()
 

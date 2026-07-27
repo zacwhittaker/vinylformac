@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var showDisconnectConfirmation = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 18),
@@ -30,15 +29,8 @@ struct ContentView: View {
         }
         .frame(minWidth: 900, minHeight: 680)
         .preferredColorScheme(.dark)
-        .animation(.easeInOut(duration: 0.35), value: model.connectionState)
-        .alert("Disconnect Spotify?", isPresented: $showDisconnectConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Disconnect", role: .destructive) {
-                model.disconnect()
-            }
-        } message: {
-            Text("The desktop artwork will stop and you'll need to sign in again to reconnect.")
-        }
+        .animation(.easeInOut(duration: 0.35), value: model.isSpotifyRunning)
+        .animation(.easeInOut(duration: 0.35), value: model.currentItem?.id)
     }
 
     private var ambientBackdrop: some View {
@@ -52,31 +44,27 @@ struct ContentView: View {
 
             Spacer()
 
-            if model.isConnected {
+            if model.isSpotifyRunning {
                 HStack(spacing: 10) {
                     HStack(spacing: 7) {
                         Circle()
                             .fill(Color(red: 0.20, green: 0.82, blue: 0.47))
                             .frame(width: 7, height: 7)
-                        Text("Spotify connected")
+                        Text("Spotify running")
                     }
                     .font(.caption)
 
-                    Menu {
-                        if let spotifyURL = model.currentItem?.spotifyURL {
+                    if let spotifyURL = model.currentItem?.spotifyURL {
+                        Menu {
                             Link("Open in Spotify", destination: spotifyURL)
-                            Divider()
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .frame(width: 24, height: 24)
+                                .contentShape(Rectangle())
                         }
-                        Button("Disconnect Spotify", role: .destructive) {
-                            showDisconnectConfirmation = true
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .frame(width: 24, height: 24)
-                            .contentShape(Rectangle())
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
                     }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
                 }
                 .padding(.leading, 14)
                 .padding(.trailing, 8)
@@ -84,53 +72,49 @@ struct ContentView: View {
                 .liquidGlass(in: Capsule())
                 .transition(.opacity)
             } else {
-                connectButton
-                    .transition(.opacity)
+                HStack(spacing: 7) {
+                    Circle()
+                        .fill(Color(white: 0.35))
+                        .frame(width: 7, height: 7)
+                    Text("Spotify not running")
+                }
+                .font(.caption)
+                .padding(.leading, 14)
+                .padding(.trailing, 14)
+                .padding(.vertical, 8)
+                .liquidGlass(in: Capsule())
+                .transition(.opacity)
             }
         }
     }
 
     @ViewBuilder
     private var spotifySection: some View {
-        if model.isConnected {
-            nowPlayingBar
+        if let item = model.currentItem {
+            nowPlayingBar(item)
                 .transition(.opacity.combined(with: .move(edge: .top)))
-        } else if let errorMessage = model.errorMessage {
-            errorView(errorMessage)
+        } else {
+            statusView
                 .transition(.opacity)
         }
     }
 
-    @ViewBuilder
-    private var connectButton: some View {
-        Button {
-            model.connect()
-        } label: {
-            HStack(spacing: 9) {
-                if model.connectionState == .connecting {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Image(systemName: "link")
-                }
+    private var statusView: some View {
+        HStack(spacing: 14) {
+            Image(systemName: model.isSpotifyRunning ? "music.note" : "arrow.up.right")
+                .font(.system(size: 16, weight: .regular))
+                .foregroundStyle(.white.opacity(0.5))
 
-                Text(model.connectionState == .connecting ? "Connecting…" : "Connect Spotify")
-                    .font(.callout)
-                    .fontWeight(.regular)
-            }
-            .padding(.horizontal, 21)
-            .frame(height: 48)
-            .liquidGlass(
-                in: Capsule(),
-                tint: Color(red: 0.12, green: 0.67, blue: 0.35),
-                interactive: true
-            )
+            Text(model.statusMessage)
+                .font(.callout)
+                .foregroundStyle(.white.opacity(0.64))
         }
-        .buttonStyle(.plain)
-        .disabled(!model.canConnect)
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentSurface(cornerRadius: 26)
     }
 
-    private var nowPlayingBar: some View {
+    private func nowPlayingBar(_ item: PlayingItem) -> some View {
         HStack(spacing: 18) {
             currentArtwork
                 .frame(width: 66, height: 66)
@@ -138,10 +122,10 @@ struct ContentView: View {
                 .shadow(color: .black.opacity(0.16), radius: 6, y: 3)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(model.currentItem?.title ?? "Waiting for music")
+                Text(item.title)
                     .font(.system(size: 16, weight: .regular))
                     .lineLimit(1)
-                Text(model.currentItem?.artist ?? "Play something in Spotify")
+                Text(item.artist)
                     .font(.callout)
                     .foregroundStyle(.white.opacity(0.64))
                     .lineLimit(1)
@@ -449,10 +433,7 @@ private struct SetupPreview: View {
                         .saturation(0.76)
                         .brightness(-0.08)
                         .clipShape(
-                            RoundedRectangle(
-                                cornerRadius: 13,
-                                style: .continuous
-                            )
+                            RoundedRectangle(cornerRadius: 13, style: .continuous)
                         )
                 }
 
@@ -551,7 +532,6 @@ private struct SetupPreview: View {
         VStack(spacing: 10) {
             HStack(alignment: .bottom, spacing: 22) {
                 speaker
-
                 ZStack(alignment: .bottom) {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(.white.opacity(0.10))
@@ -563,10 +543,8 @@ private struct SetupPreview: View {
                             .offset(y: CGFloat(-index * 22 - 12))
                     }
                 }
-
                 speaker
             }
-
             Capsule()
                 .fill(.black.opacity(0.45))
                 .frame(width: 238, height: 8)
@@ -593,11 +571,9 @@ private struct SetupPreview: View {
     private var sideA: some View {
         HStack(spacing: 18) {
             record(size: 122, labelColor: Color(red: 0.86, green: 0.76, blue: 0.42))
-
             VStack(alignment: .leading, spacing: 3) {
                 Text("SIDE")
-                Text("A")
-                    .font(.system(size: 54, weight: .regular))
+                Text("A").font(.system(size: 54, weight: .regular))
             }
             .font(.system(size: 15, weight: .regular))
             .foregroundStyle(.white.opacity(0.82))
@@ -617,7 +593,6 @@ private struct SetupPreview: View {
                 )
                 .frame(width: 218, height: 126)
                 .shadow(color: .purple.opacity(0.55), radius: 14)
-
             record(size: 108, labelColor: .purple.opacity(0.85))
         }
     }
@@ -627,9 +602,7 @@ private struct SetupPreview: View {
             if let artworkURL {
                 AsyncImage(url: artworkURL) { phase in
                     if case .success(let image) = phase {
-                        image
-                            .resizable()
-                            .scaledToFill()
+                        image.resizable().scaledToFill()
                     } else {
                         fallbackArtwork
                     }
@@ -667,17 +640,14 @@ private struct SetupPreview: View {
                         endRadius: size / 2
                     )
                 )
-
             ForEach(1..<5) { ring in
                 Circle()
                     .stroke(.white.opacity(0.07), lineWidth: 1)
                     .padding(CGFloat(ring * 8))
             }
-
             Circle()
                 .fill(labelColor)
                 .frame(width: size * 0.32, height: size * 0.32)
-
             Circle()
                 .fill(.black.opacity(0.72))
                 .frame(width: size * 0.07, height: size * 0.07)
@@ -710,7 +680,6 @@ private extension View {
 
     func contentSurface(cornerRadius: CGFloat) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-
         return background(Color.black.opacity(0.26), in: shape)
             .background(.thinMaterial, in: shape)
             .overlay {

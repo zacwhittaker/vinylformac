@@ -43,7 +43,7 @@ final class ArtworkWallpaperController {
 
     private func rebuildWindows() {
         closeWindows()
-        guard let currentItem, currentItem.artworkURL != nil else { return }
+        guard let currentItem else { return }
 
         for screen in NSScreen.screens {
             guard let displayID = screen.displayID else { continue }

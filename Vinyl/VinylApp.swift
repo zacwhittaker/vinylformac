@@ -28,13 +28,11 @@ struct VinylApp: App {
                     model.refresh()
                 }
                 .keyboardShortcut("r")
-                .disabled(!model.isConnected)
 
                 Button(model.isWallpaperEnabled ? "Hide Desktop Artwork" : "Show Desktop Artwork") {
                     model.setWallpaperEnabled(!model.isWallpaperEnabled)
                 }
                 .keyboardShortcut("d")
-                .disabled(!model.isConnected)
             }
         }
 
@@ -51,18 +49,20 @@ struct VinylApp: App {
 
 final class VinylAppDelegate: NSObject, NSApplicationDelegate {
     private var windowCloseObserver: NSObjectProtocol?
+    private static let hasLaunchedKey = "Vinyl.hasLaunchedBefore"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let hasSession = (try? SpotifySessionStore.load()) != nil
+        let hasLaunched = UserDefaults.standard.bool(forKey: Self.hasLaunchedKey)
 
-        if hasSession {
+        if hasLaunched {
             DispatchQueue.main.async {
                 NSApp.setActivationPolicy(.accessory)
                 for window in NSApp.windows where window.canBecomeMain {
                     window.close()
                 }
             }
-            try? SMAppService.mainApp.register()
+        } else {
+            UserDefaults.standard.set(true, forKey: Self.hasLaunchedKey)
         }
 
         windowCloseObserver = NotificationCenter.default.addObserver(
