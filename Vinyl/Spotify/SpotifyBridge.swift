@@ -1,7 +1,16 @@
 import AppKit
 import Foundation
 
-final class SpotifyBridge: @unchecked Sendable {
+@MainActor
+final class SpotifyBridge {
+    private struct OEmbedResponse: Decodable {
+        let thumbnailURL: URL
+
+        private enum CodingKeys: String, CodingKey {
+            case thumbnailURL = "thumbnail_url"
+        }
+    }
+
     private var artworkCache: [String: URL] = [:]
 
     func isSpotifyRunning() -> Bool {
@@ -42,44 +51,31 @@ final class SpotifyBridge: @unchecked Sendable {
         guard !trackID.isEmpty else { return nil }
         if let cached = artworkCache[trackID] { return cached }
 
-        return await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                let result = Self.fetchArtworkSync(trackID: trackID)
-                if let result { self?.artworkCache[trackID] = result }
-                continuation.resume(returning: result)
-            }
+        guard var components = URLComponents(string: "https://open.spotify.com/oembed") else {
+            return nil
         }
-    }
-
-    private static func fetchArtworkSync(trackID: String) -> URL? {
-        let encoded = trackID.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? trackID
-        let oembedURL = "https://open.spotify.com/oembed?url=\(encoded)"
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/curl")
-        process.arguments = ["-s", "-m", "5", oembedURL]
-
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
+        components.queryItems = [URLQueryItem(name: "url", value: trackID)]
+        guard let url = components.url else { return nil }
 
         do {
-            try process.run()
-            process.waitUntilExit()
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200..<300).contains(httpResponse.statusCode) else {
+                return nil
+            }
+
+            let payload = try JSONDecoder().decode(OEmbedResponse.self, from: data)
+            let artworkURL = Self.upgradedArtworkURL(from: payload.thumbnailURL)
+            artworkCache[trackID] = artworkURL
+            return artworkURL
         } catch {
             return nil
         }
+    }
 
-        guard process.terminationStatus == 0 else { return nil }
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let thumbnail = json["thumbnail_url"] as? String else {
-            return nil
-        }
-
+    private static func upgradedArtworkURL(from thumbnailURL: URL) -> URL {
         // Upgrade from 300px to 640px and use stable i.scdn.co domain
-        let upgraded = thumbnail
+        let upgraded = thumbnailURL.absoluteString
             .replacingOccurrences(
                 of: "image-cdn-[a-z]+\\.spotifycdn\\.com",
                 with: "i.scdn.co",
@@ -87,7 +83,7 @@ final class SpotifyBridge: @unchecked Sendable {
             )
             .replacingOccurrences(of: "ab67616d00001e02", with: "ab67616d0000b273")
 
-        return URL(string: upgraded)
+        return URL(string: upgraded) ?? thumbnailURL
     }
 
     private static func webURL(from uri: String) -> URL? {

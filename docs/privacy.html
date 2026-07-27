@@ -46,16 +46,16 @@
 
 <div class="page">
   <h1>Privacy Policy</h1>
-  <p class="updated">Last updated: July 27, 2026</p>
+  <p class="updated">Last updated: July 28, 2026</p>
 
   <h2>What Vinyl accesses</h2>
-  <p>Vinyl connects to the Spotify Web API using the <code>user-read-currently-playing</code> scope. This gives it read-only access to the track or episode you are currently playing — specifically the title, artist, album name, album artwork URL, and playback progress.</p>
+  <p>Vinyl reads playback-change notifications published locally by the Spotify desktop app. These include the current track title, artist, album, Spotify track identifier, and playback progress.</p>
 
   <h2>What Vinyl stores</h2>
-  <p>Your Spotify OAuth tokens (access token and refresh token) are stored locally in your Mac's Keychain. Your wallpaper preference (on/off) is stored in local UserDefaults. No data is stored on any server.</p>
+  <p>Your wallpaper and setup preferences are stored locally on your Mac. Vinyl does not request or store Spotify passwords, OAuth tokens, or API credentials. No data is stored on any developer-operated server.</p>
 
   <h2>What Vinyl sends</h2>
-  <p>Vinyl communicates only with Spotify's servers (accounts.spotify.com and api.spotify.com) to authenticate and fetch your currently playing track. It does not send data to any other server, does not include analytics or telemetry, and does not collect or transmit any personal information.</p>
+  <p>Vinyl sends the current Spotify track identifier to Spotify's public embed endpoint to find its album artwork, then downloads that artwork from Spotify's image servers. It does not include analytics or telemetry and does not send playback data anywhere else.</p>
 
   <h2>No tracking</h2>
   <p>Vinyl does not track you. There are no analytics, no crash reporters, no ad networks, no third-party SDKs.</p>

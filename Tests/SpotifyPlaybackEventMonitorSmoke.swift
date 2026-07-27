@@ -5,7 +5,7 @@ struct SpotifyPlaybackEventMonitorSmoke {
     @MainActor
     static func main() async throws {
         var refreshCount = 0
-        let monitor = SpotifyPlaybackEventMonitor {
+        let monitor = SpotifyPlaybackEventMonitor { _ in
             refreshCount += 1
         }
 
