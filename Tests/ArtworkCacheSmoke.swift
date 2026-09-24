@@ -36,6 +36,7 @@ struct ArtworkCacheSmoke {
             precondition(result === images[0])
         }
         precondition(ArtworkStub.requests == 1, "Cached artwork was downloaded again")
+<<<<<<< HEAD
         let localURL = FileManager.default.temporaryDirectory.appendingPathComponent("vinyl-artwork-smoke-\(UUID().uuidString).png")
         let localData = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aD1sAAAAASUVORK5CYII=")!
         try! localData.write(to: localURL)
@@ -45,6 +46,8 @@ struct ArtworkCacheSmoke {
         let reusedLocal = await cache.image(for: localURL)
         precondition(localImage === reusedLocal)
         precondition(ArtworkStub.requests == 1, "Local artwork triggered a network request")
+=======
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
         print("Artwork cache passed: 20 concurrent consumers and 100 reuses, one download and one decoded bitmap.")
     }
 }

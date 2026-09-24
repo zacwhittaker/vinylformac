@@ -4,31 +4,52 @@
 
 Start with [AGENTS.md](AGENTS.md), then read [PROGRESS.md](PROGRESS.md) and [PROJECT_INDEX.md](PROJECT_INDEX.md). These preserve the approved design, current implementation, verification status and next steps across tasks. Update the progress handoff before finishing each substantive task. Historical conversation evidence and the complete baseline file inventory are linked from the index.
 
+<<<<<<< HEAD
 Vinyl is a native macOS companion for desktop music players that turns each enabled desktop into a calm, animated modern turntable. Album artwork remains the record label, the vinyl follows playback, and the click-through scene stays behind Finder icons and ordinary windows.
+=======
+Vinyl is a native macOS companion for Spotify that turns each enabled desktop into a calm, animated modern turntable. Album artwork remains the record label, the vinyl follows playback, and the click-through scene stays behind Finder icons and ordinary windows.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
 This repository is a modernised, independently implemented project. The desktop-window technique was informed by [ibuhs/Luviosa](https://github.com/ibuhs/Luviosa), a GPL-3.0 live-wallpaper project. Vinyl contains no Luviosa source or media and does not represent itself as the upstream project.
 
 ## Highlights
 
 - A new Midnight default inspired by modern industrial audio design.
+<<<<<<< HEAD
 - Midnight is the only currently offered theme and preset; unfinished legacy choices are retired.
 - Focused controls for platter lighting, track information, motion and per-display brightness.
+=======
+- Fifteen component-aware themes: Midnight, Aurora, Studio, Porcelain, Obsidian, Transparent, Hi-Fi, Tokyo, Technics-inspired, Y2K, Seventies, Braun-inspired, Walnut, Cream, and Gramophone. No trademarked branding is reproduced.
+- Independent vinyl, lighting, background, Now Playing, scale, opacity, and layout choices.
+- Five included appearance presets, plus create, rename, duplicate, delete, and apply controls.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 - One independent Vinyl on/off switch for every connected display.
 - Persisted per-display appearance, with an optional shared appearance across all displays.
 - Dedicated responsive compositions for standard landscape, ultrawide, super-ultrawide, and portrait displays.
 - An Identify Displays overlay and live reaction to connection, disconnection, rotation, and resolution changes.
 - Smooth default motion with a coalescing playback animation state machine, progress-aware tonearm, and Reduce Motion support.
+<<<<<<< HEAD
 - Appearance, Displays and General settings with native Liquid Glass navigation on macOS 26+, material fallback, and accessibility support.
 - Menu-bar Settings… access (⌘,) and a Spotify / Apple Music selector.
+=======
+- Native sidebar settings with an always-live preview.
+- Lightweight menu-bar access to presets and individual displays.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 - No analytics or telemetry.
 
 ## Playback
 
+<<<<<<< HEAD
 Choose Spotify or Apple Music in Settings → General → Music player, or in the menu-bar Music Player menu. Vinyl queries the selected running Mac app immediately and starts at the idle turntable until playback is confirmed. It does not launch or switch playback between the two apps automatically.
 
 Spotify retains its local Apple Events and notification integration. The initial Apple Music bridge reads track details, seconds-based position and raw artwork from Music.app’s scripting dictionary, and routes previous/play-pause/next commands to that app. Artwork files are bounded to 16 cached covers and decoded through the shared image cache. Streams or tracks without exposed artwork retain a placeholder.
 
 Allow the selected player under Vinyl’s Automation permissions in System Settings. No Spotify developer credentials, MusicKit key or separate login is required by this local integration. Apple Music script compilation, metadata parsing, artwork caching and source-switch regression checks pass; live signed-app Automation, streaming/library coverage and real transport behavior still need verification.
+=======
+Vinyl currently supports the Spotify desktop app. It reads the current track immediately at launch and uses Spotify's local playback notifications to trigger fresh reads. Artwork comes directly from the player, so displaying playback state does not wait for an internet metadata request. Spotify Automation access must be allowed in System Settings. It does not require Spotify developer credentials or account authentication.
+
+The renderer consumes a source-neutral `PlayingItem` model so Apple Music or another source can be added without coupling it to wallpaper views. Apple Music is **not currently implemented**; the previous repository did not contain working Apple Music support to preserve.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
 ## Displays and layout
 
@@ -62,12 +83,20 @@ Tested layout logic covers 16:10, 16:9, 21:9, 32:9, 4:3, 3:2, and portrait ratio
 
 - macOS 14 Sonoma or later
 - Xcode 26 or later (the project uses file-system-synchronised groups and Metal shaders)
+<<<<<<< HEAD
 - Spotify for Mac or the built-in Music app for live playback
+=======
+- Spotify for Mac for live playback
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
 1. Open `Vinyl.xcodeproj` in Xcode.
 2. Choose an Apple Developer team in Signing & Capabilities if requested.
 3. Build and run the `Vinyl` scheme.
+<<<<<<< HEAD
 4. Select your music player in Settings → General, open that app and play a track.
+=======
+4. Open Spotify and play a track.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
 For a command-line development build:
 
@@ -94,7 +123,11 @@ Bundled material textures are CC0. Their provenance and licences are listed in [
 
 ## Known limitations
 
+<<<<<<< HEAD
 - The selected player must be running. Apple Music support is an initial implementation awaiting live validation.
+=======
+- Spotify must be installed and running; Apple Music support remains future work.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 - Custom background image picking and user-defined colour entry are represented in the configuration schema but intentionally not exposed until security-scoped bookmark persistence is implemented.
 - Friendly display names and Core Graphics display IDs come from macOS; IDs may change after unusual hardware/adapter changes.
 - Global system-wide shortcut capture is not enabled, avoiding conflicts and extra accessibility permissions. The app commands use ⌘D and ⌘R while Vinyl is active.

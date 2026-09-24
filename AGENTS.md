@@ -22,7 +22,11 @@ These instructions establish a read/update workflow; Markdown cannot itself run 
 
 ## Product and theme contract
 
+<<<<<<< HEAD
 Vinyl is a native macOS Spotify / Apple Music companion and persistent desktop turntable. Midnight is the user's actively refined design. Keep its understated, dark industrial-audio character, physical construction, and calm motion.
+=======
+Vinyl is a native macOS Spotify companion and persistent desktop turntable. Midnight is the user's actively refined design. Keep its understated, dark industrial-audio character, physical construction, and calm motion.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
 - Preserve the approved silhouette, proportions, placement, typography, controls, playback behavior, and responsive layout during a material request. Geometry changes require a geometry request.
 - Midnight is the approved default physical base for all new themes. Follow `THEME_AUTHORING.md`: add material definitions under `Vinyl/Themes` and register them in `TurntableThemeCatalog`; reuse the shared physical scene and animation machinery. Do not add new geometry-changing legacy `VinylTheme`/`ThemeDesign` cases.
@@ -40,7 +44,11 @@ Vinyl is a native macOS Spotify / Apple Music companion and persistent desktop t
 ## Architecture and performance rules
 
 - Extend the existing SwiftUI Shapes/Canvas, Metal color effects, AppKit windows, and Core Animation layers. This is not a Blender/SceneKit mesh or PBR texture-map pipeline.
+<<<<<<< HEAD
 - Playback startup must query the selected music player immediately (Spotify by default) and always show an idle turntable if nothing is playing. Preserve `Music Not Playing` / `Vinyl is ready`.
+=======
+- Playback startup must query Spotify immediately and always show an idle turntable if nothing is playing. Preserve `Music Not Playing` / `Vinyl is ready`.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 - Preserve local Spotify Apple Events and notification-based synchronization, monotonic timing, coalesced reads, and artwork reuse. No Spotify developer credentials or OAuth are needed for the current integration.
 - Do not recreate wallpaper windows or artwork layers on ordinary play/pause, progress, or track updates. Preserve the native artwork layer and shared cache; no white flashes on resume.
 - Keep texture generation static and continuous animation on lightweight compositor layers. No full-scene 60 Hz published state or animated grain. Preserve paused/hidden/sleep/Low Power behavior. Aim for display cadence and very low idle work; do not promise zero battery use or claim performance without profiling.

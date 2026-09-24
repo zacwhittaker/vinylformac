@@ -15,7 +15,11 @@ The physical base retains the 1920×1000 design canvas, responsive camera, commo
 ## Add a theme
 
 1. Create `Vinyl/Themes/YourTheme.swift`. Copy the example below and change only selected materials. Use a stable unique lowercase ID; do not rename an ID after shipping it.
+<<<<<<< HEAD
 2. Append `YourTheme.definition` to `TurntableThemeCatalog.all`, keeping Midnight first. Registration automatically populates the Appearance theme picker (hidden when Midnight is the only choice). Add per-display selection UI when introducing multiple supported themes. No settings-view or physical-renderer edits are needed.
+=======
+2. Append `YourTheme.definition` to `TurntableThemeCatalog.all`, keeping Midnight first. Registration automatically populates Appearance → Turntable and the per-display theme picker. No settings-view or physical-renderer edits are needed.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 3. Add any static texture assets to `Vinyl/Assets.xcassets` with attribution in `ASSET_LICENSES.md`. The synchronized Xcode source group includes new Swift files automatically.
 4. Build and verify as below. Update the handoff/index for the new theme. Commit/push/release only when requested.
 
@@ -80,7 +84,11 @@ Light gradients, occlusion, groove highlights, foot microtexture and LED choreog
 
 `AppearanceConfiguration.materialThemeID` is optional and Codable. Old schema-v2 configurations/presets decode with nil, retaining their original `VinylTheme`; nil plus `.midnight` resolves to Midnight. An unknown material ID displays Midnight without erasing the stored ID. New choices set the catalogue ID plus the compatibility `.midnight` enum value; legacy choices clear the catalogue ID. Use `themeChoiceID` when selecting themes programmatically.
 
+<<<<<<< HEAD
 As of 2026-09-14, only Midnight is offered. ConfigurationStore migrates legacy renderer selections to Midnight and replaces the preset list with the single Midnight preset, while preserving display calibration and other settings. Raw Codable decoding retains old values for compatibility tests; loading through ConfigurationStore applies retirement. Global/shared/per-display configurations retain material IDs. Per-display exposure remains independent. Appearance-only changes publish into existing wallpaper presentations, preserving the shared arm state and native layers between material themes. Window-policy, animation configuration, display enablement and exposure changes retain their existing rebuild behavior. Switching to a legacy design necessarily changes the renderer branch.
+=======
+Global/shared/per-display selection and presets retain material IDs. Per-display exposure remains independent. Appearance-only changes publish into existing wallpaper presentations, preserving the shared arm state and native layers between material themes. Window-policy, animation configuration, display enablement and exposure changes retain their existing rebuild behavior. Switching to a legacy design necessarily changes the renderer branch.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
 ## Verification
 

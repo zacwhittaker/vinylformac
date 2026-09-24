@@ -15,6 +15,7 @@ final class ArtworkImageCache {
         if let image = cached(url) { return image }
         if let task = pending[url] { return await task.value }
         let task = Task.detached(priority: .utility) { () -> CGImage? in
+<<<<<<< HEAD
             let data: Data
             if url.isFileURL {
                 guard let local = try? Data(contentsOf: url) else { return nil }
@@ -27,6 +28,13 @@ final class ArtworkImageCache {
                 data = downloaded
             }
             guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+=======
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 15
+            guard let (data, response) = try? await URLSession.shared.data(for: request),
+                  (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) ?? true,
+                  let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
             return CGImageSourceCreateThumbnailAtIndex(source, 0, [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceCreateThumbnailWithTransform: true,

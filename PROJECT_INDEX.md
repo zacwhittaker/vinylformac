@@ -15,9 +15,13 @@ Indexed 2026-09-07 against baseline HEAD `53534607af2846fcdd05339e94f7002c1ec39a
 
 ## Active flow
 
+<<<<<<< HEAD
 Fresh install → `OnboardingProgress` gate → `OnboardingView` welcome/license placeholder/player/theme/displays/summary → existing configuration store → `AppModel.start()` only after completion. Existing installs migrate past the new flow; General settings can reopen it without clearing current choices.
 
 Selected-player notification / launch / wake / manual refresh → AppModel → DesktopMusicProvider (SpotifyBridge or AppleMusicBridge) read → PlayingItem with monotonic sample → ArtworkWallpaperController → existing per-display presentation → ModernWallpaperView.
+=======
+Spotify distributed notification / launch / wake / manual refresh → AppModel → serialized SpotifyBridge read → PlayingItem with monotonic sample → ArtworkWallpaperController → existing per-display presentation → ModernWallpaperView.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
 ModernWallpaperView → material catalogue → SharedTurntableScene (approved Midnight physical base) → chassis, platter/record, MidnightTonearm, embedded display. SpinningArtwork and PlaybackProgressBar use native Core Animation; other surfaces mostly use SwiftUI paths/Canvas/Metal. Appearance-only changes and routine playback changes update retained presentations. Window-policy/animation/exposure changes keep their rebuild path; display changes reconcile by display ID.
 
@@ -30,7 +34,11 @@ All paths below are relative to the repository root.
 | File | Responsibility and edit guidance |
 | --- | --- |
 | Vinyl/VinylApp.swift | App entry, settings scene, menu bar, app commands, silent launch/accessory behavior, duplicate-instance handling. Snapshot invocation is Debug-only. |
+<<<<<<< HEAD
 | Vinyl/AppModel.swift | Main actor app state, saved music-source selection with generation-checked reads, event/poll/sleep/wake coordination, injected providers/defaults for regression tests, wallpaper enablement and login item. |
+=======
+| Vinyl/AppModel.swift | Main actor app state, Spotify refresh lifecycle, event/poll/sleep/wake coordination, wallpaper enablement, presets, login item. |
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 | Vinyl/Models/PlayingItem.swift | Source-neutral playback record, idle state, monotonic position, album identity. |
 | Vinyl/Models/AppConfiguration.swift | Theme/material/background/layout/animation options, optional material catalogue ID, defaults, per-display configuration, presets, Codable persistence and appearance-only update comparison. |
 | Vinyl/Themes/TurntableTheme.swift | Material-only theme catalogue, Midnight default/fallback, stable selection IDs and legacy compatibility. Add all new themes here. |
@@ -38,9 +46,12 @@ All paths below are relative to the repository root.
 | Vinyl/Themes/MidnightMaterials.swift | Approved Midnight baseline pigments and finishes; new themes copy and override this value. |
 | Vinyl/Models/VinylSetup.swift | Setup IDs/catalogue; available Turntable and coming-soon placeholders. Not the theme catalogue. |
 | Vinyl/Models/DeviceInfo.swift | Device naming used in presentation/branding. |
+<<<<<<< HEAD
 | Vinyl/Models/OnboardingProgress.swift | Versioned first-launch completion and resumable-step keys, legacy-user migration, restart support and Debug-only preview mode. |
 | Vinyl/Music/DesktopMusicProvider.swift | Shared provider interface for reads/commands; existing Spotify result/command types retained for compatibility. |
 | Vinyl/Music/AppleMusicBridge.swift | Local Music.app scripts, metadata/seconds parsing, bounded raw-artwork file cache and serial background execution. No MusicKit or account credentials. |
+=======
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 | Vinyl/Spotify/SpotifyBridge.swift | Local player queries/commands and serialized script execution; retained legacy oEmbed artwork helper. |
 | Vinyl/Spotify/SpotifyPlaybackEventMonitor.swift | Distributed Spotify notifications and 40 ms debounce. |
 | Vinyl/Display/DisplayManager.swift | Display discovery, identifiers, pixel/frame/orientation details, display-identification state. |
@@ -57,9 +68,14 @@ All paths below are relative to the repository root.
 | Vinyl/Wallpaper/WallpaperSnapshot.swift | Debug ImageRenderer harness and environment overrides; native-layer preview limitations. |
 | Vinyl/Wallpaper/SmoothRecordRotation.swift | Legacy generic SwiftUI rotation wrapper; not the active native wallpaper artwork host. |
 | Vinyl/Wallpaper/AlbumCanvasWallpaperView.swift | Large earlier tabletop/sleeve/turntable renderer, SceneLight and older surface helpers; not current Midnight entry. |
+<<<<<<< HEAD
 | Vinyl/Views/SettingsRootView.swift | Modern Liquid Glass Appearance/Displays/General settings: adaptive Midnight backdrop, floating navigation, featured bundled theme cover, grouped controls, native macOS 26 glass containers with material/Reduce Transparency fallback, directly observed configuration and sliders that commit on release. |
-| Vinyl/Views/OnboardingView.swift | Six-step first-launch setup assistant: welcome, intentionally nonfunctional license-key UI, real music-player/theme/display selection, contextual Automation explanation and final summary. |
+| Vinyl/Views/OnboardingView.swift | Six-step first-launch setup assistant in a minimal native two-pane layout: welcome, intentionally nonfunctional license-key UI, real music-player/theme/display selection, contextual Automation explanation and final summary. |
 | Vinyl/Views/MenuBarContent.swift | Compact native menu: playback status, desktop visibility, explicit Settings… (⌘,), player selection and quit; displays live in settings. Automatic refresh has no manual button. |
+=======
+| Vinyl/Views/SettingsRootView.swift | Three-tab native settings (Appearance, Displays, General); directly observed configuration, renderer-aware controls, and value-labelled sliders that commit on release. |
+| Vinyl/Views/MenuBarContent.swift | Compact native menu: playback status, desktop visibility, explicit Settings… (⌘,), refresh and quit; presets/displays live in settings. |
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 | Vinyl/Views/ContentView.swift | Earlier setup/content UI retained; current app scene opens SettingsRootView. |
 
 ## Geometry anchors to preserve
@@ -78,15 +94,22 @@ Standalone smoke executables, not a configured XCTest target. Compile only relev
 
 | Test file | Coverage |
 | --- | --- |
+<<<<<<< HEAD
 | Tests/PlayerConfigurationSmoke.swift | Midnight-only preset/theme migration, preserved display/motion values, default Spotify and Apple Music selection persistence. Dependencies: AppConfiguration and Themes/*.swift. |
 | Tests/AppleMusicBridgeSmoke.swift | Music metadata/seconds, malformed/stream fields, startup gate and compilation of read/artwork/transport scripts against installed dictionary. Dependencies: PlayingItem, SpotifyBridge and AppleMusicBridge. |
 | Tests/PlayerSwitchSmoke.swift | Injected fake providers verify late-response rejection, selected source persistence, paused-source idle and confirmed-playing recovery. Compile app Swift sources except VinylApp with DEBUG. |
 | Tests/OnboardingProgressSmoke.swift | Fresh-install gate, completion, resume-key cleanup, restart and legacy-user migration using an isolated UserDefaults suite. Dependency: Models/OnboardingProgress.swift. |
+=======
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 | Tests/ThemeConfigurationSmoke.swift | Old-schema/preset persistence, material defaults and unknown-ID fallback, global/per-display selection and retained-window update policy. Dependencies: AppConfiguration and Themes/*.swift. |
 | Tests/ThemeMaterialRenderingSmoke.swift | Material pigment/tint and silhouette alpha; retained playing arm across material changes. Dependencies: PlayingItem, MidnightTonearm, TurntableMaterials and MidnightMaterials; DEBUG/GUI. |
 | Tests/PlaybackClockSmoke.swift | Monotonic elapsed time, pause, seek and duration bounds. Dependency: Models/PlayingItem.swift. |
 | Tests/PlaybackScheduleSmoke.swift | Next-second boundary, paused/hidden no repeated ticks. Dependencies: PlayingItem and PlaybackTextSchedule. |
+<<<<<<< HEAD
 | Tests/ArtworkCacheSmoke.swift | URLProtocol stub; 20 concurrent consumers, 100 reuses, one request/bitmap. Dependency: CachedArtwork; also checks local Music artwork decode/cache reuse without network. |
+=======
+| Tests/ArtworkCacheSmoke.swift | URLProtocol stub; 20 concurrent consumers, 100 reuses, one request/bitmap. Dependency: CachedArtwork. |
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 | Tests/ArtworkAccentSmoke.swift | Gray, white-with-tinted-detail and near-black/cyan-cast covers remain neutral white while broad teal artwork retains its hue. Dependency: ArtworkAccent. |
 | Tests/PlaybackRenderingSmoke.swift | Native host persists across pause/resume, compositor angles advance, measured display-link cadence. Dependencies: SpinningArtwork, CachedArtwork, PlaybackTextSchedule, PlayingItem. |
 | Tests/PlaybackProgressSmoke.swift | Progress fill/dot colour, endpoints, paired animation timing, seek, resize, suspension, pause and idle reset. Dependencies: PlaybackProgressBar, PlayingItem. |
@@ -120,9 +143,13 @@ Build and snapshot workflow, plus known visual limitations, are in PROGRESS.md. 
 | README.md | Product/build overview; some legacy claims require reconciliation, listed in PROGRESS.md. |
 | ASSET_LICENSES.md | CC0 provenance, provider links and download dates for bundled raster textures. |
 | tunearm.md | Historical tonearm research/design plan (filename intentionally preserved). Later single-bow/user geometry decisions supersede earlier alternatives. |
+<<<<<<< HEAD
 | Design/VinylAppIconMaster.png | Generated master for the current graphite-record/V app identity; source for every AppIcon raster and the in-app VinylLogo asset. |
 | Design/VinylMenuBarMarkMaster.png | Generated, simplified monochrome companion mark; source for the template-rendered menu-bar asset. |
 | Design/AppIcon.svg | Superseded historical vector icon source; retained for provenance, not the current app identity. |
+=======
+| Design/AppIcon.svg | Editable vector icon source. |
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 | docs/index.html | Static marketing page, latest-release download link, site styling. |
 | docs/privacy.html | Public privacy page; oEmbed description predates current live player-artwork flow. |
 | docs/CNAME | Website hostname vinyl.shivs.me; no deployment performed in this task. |
@@ -130,7 +157,11 @@ Build and snapshot workflow, plus known visual limitations, are in PROGRESS.md. 
 
 ## Asset catalogue
 
+<<<<<<< HEAD
 `Vinyl/Assets.xcassets` includes root metadata, AccentColor, ten generated AppIcon PNG sizes, `VinylLogo` for in-app identity, the matching template-rendered `VinylMenuBarIcon`, and the compressed 960x600 JPEG `MidnightThemeCover` used by the Settings theme gallery. Textures: DustTexture, LeatherTexture, MetalTexture, RosewoodTexture/RosewoodRoughness, ScratchesTexture, WalnutTexture/WalnutRoughness. Each texture image set contains Contents.json and one JPEG. These support existing/legacy designs; current Midnight chassis/background use procedural shaders. No SmokedWalnutTexture remains in the source inventory; its earlier introduction was reverted.
+=======
+`Vinyl/Assets.xcassets` includes root metadata, AccentColor, ten AppIcon PNG size variants and metadata. Textures: DustTexture, LeatherTexture, MetalTexture, RosewoodTexture/RosewoodRoughness, ScratchesTexture, WalnutTexture/WalnutRoughness. Each image set contains Contents.json and one JPEG. These support existing/legacy designs; current Midnight chassis/background use procedural shaders. No SmokedWalnutTexture remains in the source inventory; its earlier introduction was reverted.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
 ## Generated outputs and reference material
 

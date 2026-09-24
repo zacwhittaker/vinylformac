@@ -17,33 +17,22 @@ struct OnboardingView: View {
     }
 
     var body: some View {
-        ZStack {
-            OnboardingBackdrop(accent: step.tint)
+        HStack(spacing: 0) {
+            progressRail
+                .frame(width: 238)
+                .background(Color(nsColor: .controlBackgroundColor).opacity(0.72))
 
-            HStack(spacing: 0) {
-                progressRail
-                    .frame(width: 242)
+            Divider()
 
-                Rectangle()
-                    .fill(.separator.opacity(0.34))
-                    .frame(width: 1)
+            VStack(spacing: 0) {
+                stepContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                VStack(spacing: 0) {
-                    stepContent
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    navigationBar
-                }
+                navigationBar
             }
-            .background(.ultraThinMaterial.opacity(0.45))
-            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 30, style: .continuous)
-                    .strokeBorder(.white.opacity(0.12))
-            }
-            .shadow(color: .black.opacity(0.28), radius: 44, y: 18)
-            .padding(20)
+            .background(Color(nsColor: .windowBackgroundColor))
         }
+        .background(Color(nsColor: .windowBackgroundColor))
         .frame(minWidth: 860, idealWidth: 980, minHeight: 620, idealHeight: 700)
         .animation(.snappy(duration: 0.3), value: savedStep)
         .onAppear {
@@ -57,11 +46,11 @@ struct OnboardingView: View {
 
     private var progressRail: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 Image("VinylLogo")
                     .resizable()
                     .interpolation(.high)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 34, height: 34)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Vinyl")
@@ -71,24 +60,26 @@ struct OnboardingView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.bottom, 34)
+            .padding(.horizontal, 6)
+            .padding(.bottom, 30)
 
-            VStack(alignment: .leading, spacing: 9) {
+            Text("SETUP")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
+
+            VStack(alignment: .leading, spacing: 3) {
                 ForEach(steps) { item in
-                    HStack(spacing: 11) {
-                        ZStack {
-                            Circle()
-                                .fill(progressColour(for: item).opacity(item == step ? 0.18 : 0.08))
-                            if item.rawValue < step.rawValue {
-                                Image(systemName: "checkmark")
-                                    .font(.system(size: 10, weight: .bold))
-                            } else {
-                                Text("\(item.rawValue + 1)")
-                                    .font(.caption2.monospacedDigit().weight(.semibold))
-                            }
-                        }
-                        .foregroundStyle(progressColour(for: item))
-                        .frame(width: 28, height: 28)
+                    HStack(spacing: 10) {
+                        Image(systemName: item.rawValue < step.rawValue ? "checkmark" : item.symbol)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(item == step ? .white : progressColour(for: item))
+                            .frame(width: 30, height: 30)
+                            .background(
+                                item == step ? item.tint : item.tint.opacity(0.12),
+                                in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            )
 
                         Text(item.railTitle)
                             .font(.callout.weight(item == step ? .semibold : .regular))
@@ -96,11 +87,11 @@ struct OnboardingView: View {
 
                         Spacer()
                     }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 7)
                     .background(
-                        item == step ? item.tint.opacity(0.1) : .clear,
-                        in: RoundedRectangle(cornerRadius: 12)
+                        item == step ? Color.primary.opacity(0.075) : .clear,
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
                     )
                     .accessibilityAddTraits(item == step ? .isSelected : [])
                 }
@@ -116,10 +107,10 @@ struct OnboardingView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(13)
-            .background(.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 14))
+            .padding(.horizontal, 8)
         }
-        .padding(24)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 22)
     }
 
     private var stepContent: some View {
@@ -145,21 +136,20 @@ struct OnboardingView: View {
                 insertion: .opacity.combined(with: .move(edge: .trailing)),
                 removal: .opacity.combined(with: .move(edge: .leading))
             ))
-            .frame(maxWidth: 650, alignment: .leading)
-            .padding(.horizontal, 46)
-            .padding(.vertical, 42)
+            .frame(maxWidth: 670, alignment: .leading)
+            .padding(.horizontal, 50)
+            .padding(.vertical, 38)
             .frame(maxWidth: .infinity, alignment: .center)
         }
         .scrollIndicators(.hidden)
     }
 
     private var welcomeStep: some View {
-        VStack(alignment: .leading, spacing: 26) {
+        VStack(alignment: .leading, spacing: 24) {
             Image("VinylLogo")
                 .resizable()
                 .interpolation(.high)
-                .frame(width: 84, height: 84)
-                .shadow(color: step.tint.opacity(0.28), radius: 24)
+                .frame(width: 68, height: 68)
 
             StepHeading(
                 eyebrow: "WELCOME TO VINYL",
@@ -167,7 +157,7 @@ struct OnboardingView: View {
                 detail: "A quiet, physical turntable that follows Spotify or Apple Music across the displays you choose."
             )
 
-            HStack(spacing: 12) {
+            HStack(spacing: 24) {
                 FeaturePill(icon: "music.note", title: "Follows playback")
                 FeaturePill(icon: "display.2", title: "Made for every display")
                 FeaturePill(icon: "lock.shield", title: "Local and private")
@@ -196,15 +186,10 @@ struct OnboardingView: View {
                     .onSubmit(advance)
                     .padding(.horizontal, 16)
                     .frame(height: 52)
-                    .background(.primary.opacity(0.055), in: RoundedRectangle(cornerRadius: 13))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 13)
-                            .strokeBorder(
-                                licenseFieldFocused
-                                    ? step.tint.opacity(0.8)
-                                    : Color(nsColor: .separatorColor).opacity(0.4)
-                            )
-                    }
+                    .background(
+                        licenseFieldFocused ? step.tint.opacity(0.1) : Color.primary.opacity(0.055),
+                        in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    )
                     .accessibilityLabel("License key")
 
                 Label("Preview only — this build does not validate, transmit, or store the key.", systemImage: "hammer.fill")
@@ -212,7 +197,7 @@ struct OnboardingView: View {
                     .foregroundStyle(.secondary)
             }
             .padding(18)
-            .onboardingCard(tint: step.tint)
+            .onboardingGroup()
 
             HStack(spacing: 8) {
                 Image(systemName: "envelope")
@@ -293,19 +278,17 @@ struct OnboardingView: View {
                         Spacer()
                         Text("Included")
                             .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(.primary.opacity(0.06), in: Capsule())
+                            .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 8)
 
                     Spacer()
                 }
                 .padding(14)
-                .contentShape(RoundedRectangle(cornerRadius: 22))
+                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             .buttonStyle(.plain)
-            .onboardingCard(tint: step.tint, selected: true)
+            .onboardingGroup(selected: true, tint: step.tint)
             .accessibilityLabel("Midnight theme, selected")
 
             HStack(spacing: 9) {
@@ -319,7 +302,7 @@ struct OnboardingView: View {
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity)
                     .frame(height: 64)
-                    .background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 13))
+                    .background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
                     .accessibilityLabel("Theme \(number), coming soon")
                 }
             }
@@ -340,17 +323,23 @@ struct OnboardingView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .padding(18)
-                    .onboardingCard(tint: step.tint)
+                    .onboardingGroup()
             } else {
-                VStack(spacing: 10) {
-                    ForEach(model.displayManager.displays) { display in
+                VStack(spacing: 0) {
+                    ForEach(Array(model.displayManager.displays.enumerated()), id: \.element.id) { index, display in
                         DisplayChoice(
                             display: display,
                             isEnabled: displayBinding(display.id),
                             tint: step.tint
                         )
+
+                        if index < model.displayManager.displays.count - 1 {
+                            Divider()
+                                .padding(.leading, 62)
+                        }
                     }
                 }
+                .onboardingGroup()
             }
 
             Toggle(isOn: Binding(
@@ -368,7 +357,7 @@ struct OnboardingView: View {
             .toggleStyle(.switch)
             .accessibilityLabel("Share appearance across displays")
             .padding(16)
-            .onboardingCard(tint: step.tint)
+            .onboardingGroup()
         }
     }
 
@@ -393,7 +382,7 @@ struct OnboardingView: View {
                 )
             }
             .padding(.horizontal, 17)
-            .onboardingCard(tint: step.tint)
+            .onboardingGroup()
 
             Toggle(isOn: $showOnDesktop) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -407,7 +396,7 @@ struct OnboardingView: View {
             .toggleStyle(.switch)
             .accessibilityLabel("Show Vinyl on the desktop now")
             .padding(16)
-            .onboardingCard(tint: step.tint)
+            .onboardingGroup()
 
             Label(
                 "After you choose Start Vinyl, macOS may ask for permission to control \(model.selectedPlayer.name).",
@@ -422,7 +411,8 @@ struct OnboardingView: View {
         HStack(spacing: 12) {
             if step != .welcome {
                 Button("Back", action: retreat)
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
                     .keyboardShortcut(.leftArrow, modifiers: [.command])
             }
 
@@ -438,10 +428,10 @@ struct OnboardingView: View {
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
         }
-        .padding(.horizontal, 28)
-        .frame(height: 76)
-        .background(.bar.opacity(0.52))
-        .overlay(alignment: .top) { Divider().opacity(0.38) }
+        .padding(.horizontal, 30)
+        .frame(height: 70)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .overlay(alignment: .top) { Divider() }
     }
 
     private var primaryButtonTitle: String {
@@ -506,6 +496,17 @@ private enum OnboardingStep: Int, CaseIterable, Identifiable {
         }
     }
 
+    var symbol: String {
+        switch self {
+        case .welcome: "sparkles"
+        case .license: "key.fill"
+        case .player: "waveform"
+        case .theme: "paintpalette.fill"
+        case .displays: "display.2"
+        case .ready: "checkmark"
+        }
+    }
+
     var tint: Color {
         switch self {
         case .welcome: Color(red: 0.94, green: 0.25, blue: 0.33)
@@ -518,59 +519,21 @@ private enum OnboardingStep: Int, CaseIterable, Identifiable {
     }
 }
 
-private struct OnboardingBackdrop: View {
-    let accent: Color
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                Color(nsColor: .windowBackgroundColor)
-
-                if !reduceTransparency {
-                    Image("MidnightThemeCover")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                        .blur(radius: 72)
-                        .scaleEffect(1.2)
-                        .saturation(0.66)
-                        .opacity(0.3)
-
-                    Circle()
-                        .fill(accent.opacity(0.2))
-                        .frame(width: min(proxy.size.width, proxy.size.height) * 0.78)
-                        .blur(radius: 120)
-                        .offset(x: proxy.size.width * 0.32, y: -proxy.size.height * 0.3)
-                }
-
-                LinearGradient(
-                    colors: [.black.opacity(0.1), .black.opacity(0.5)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-            .clipped()
-        }
-        .ignoresSafeArea()
-    }
-}
-
 private struct StepHeading: View {
     let eyebrow: String
     let title: String
     let detail: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 9) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(eyebrow)
-                .font(.caption.weight(.bold))
-                .tracking(1.2)
+                .font(.caption.weight(.semibold))
+                .tracking(0.8)
                 .foregroundStyle(.secondary)
             Text(title)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .font(.system(size: 30, weight: .semibold))
             Text(detail)
-                .font(.system(size: 16))
+                .font(.system(size: 15))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .lineSpacing(2)
@@ -584,10 +547,10 @@ private struct StepSymbol: View {
 
     var body: some View {
         Image(systemName: name)
-            .font(.system(size: 25, weight: .semibold))
-            .foregroundStyle(tint)
-            .frame(width: 56, height: 56)
-            .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 17))
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 38, height: 38)
+            .background(tint, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
     }
 }
 
@@ -597,10 +560,8 @@ private struct FeaturePill: View {
 
     var body: some View {
         Label(title, systemImage: icon)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, 11)
-            .padding(.vertical, 8)
-            .background(.primary.opacity(0.055), in: Capsule())
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 }
 
@@ -637,7 +598,7 @@ private struct PlayerChoice: View {
             .contentShape(RoundedRectangle(cornerRadius: 20))
         }
         .buttonStyle(.plain)
-        .onboardingCard(tint: tint, selected: selected)
+        .onboardingGroup(selected: selected, tint: tint)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
@@ -667,8 +628,8 @@ private struct DisplayChoice: View {
         .toggleStyle(.switch)
         .accessibilityLabel("Show Vinyl on \(display.name)")
         .accessibilityValue(isEnabled ? "On" : "Off")
-        .padding(14)
-        .onboardingCard(tint: tint, selected: isEnabled)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
     }
 }
 
@@ -693,25 +654,21 @@ private struct SummaryRow: View {
     }
 }
 
-private struct OnboardingCardModifier: ViewModifier {
-    let tint: Color
+private struct OnboardingGroupModifier: ViewModifier {
     let selected: Bool
+    let tint: Color
 
     func body(content: Content) -> some View {
         content
-            .background(.primary.opacity(selected ? 0.065 : 0.04), in: RoundedRectangle(cornerRadius: 20))
-            .overlay {
-                RoundedRectangle(cornerRadius: 20)
-                    .strokeBorder(
-                        selected ? tint.opacity(0.48) : Color(nsColor: .separatorColor).opacity(0.25),
-                        lineWidth: selected ? 1.5 : 1
-                    )
-            }
+            .background(
+                selected ? tint.opacity(0.1) : Color.primary.opacity(0.045),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
     }
 }
 
 private extension View {
-    func onboardingCard(tint: Color, selected: Bool = false) -> some View {
-        modifier(OnboardingCardModifier(tint: tint, selected: selected))
+    func onboardingGroup(selected: Bool = false, tint: Color = .accentColor) -> some View {
+        modifier(OnboardingGroupModifier(selected: selected, tint: tint))
     }
 }

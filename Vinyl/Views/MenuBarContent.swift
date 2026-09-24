@@ -37,8 +37,13 @@ struct MenuBarContent: View {
         }
         .keyboardShortcut(",")
 
+<<<<<<< HEAD
         Picker("Music Player", selection: Binding(get: { model.selectedPlayer }, set: { model.selectPlayer($0) })) {
             ForEach(MusicPlayer.allCases) { Text($0.name).tag($0) }
+=======
+        Button("Refresh Now") {
+            model.refresh()
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
         }
 
         Divider()

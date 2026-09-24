@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsRootView: View {
     @EnvironmentObject private var model: AppModel
+<<<<<<< HEAD
     var initialPage: SettingsPage = .appearance
 
     var body: some View {
@@ -37,12 +38,18 @@ enum SettingsPage: String, CaseIterable {
         case .displays: Color(red: 0.24, green: 0.55, blue: 0.98)
         case .general: Color(red: 0.55, green: 0.42, blue: 0.98)
         }
+=======
+
+    var body: some View {
+        SettingsContent(model: model, store: model.configurationStore)
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
     }
 }
 
 private struct SettingsContent: View {
     @ObservedObject var model: AppModel
     @ObservedObject var store: ConfigurationStore
+<<<<<<< HEAD
     @AppStorage(OnboardingProgress.completedVersionKey) private var completedOnboardingVersion = OnboardingProgress.currentVersion
     @State private var selection: SettingsPage
     @State private var searchText = ""
@@ -603,6 +610,132 @@ private struct SettingsToggleRow: View {
 private struct SettingsSlider: View {
     let title: String
     let detail: String
+=======
+    @State private var selection = 0
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("Settings section", selection: $selection) {
+                Label("Appearance", systemImage: "paintpalette").tag(0)
+                Label("Displays", systemImage: "display.2").tag(1)
+                Label("General", systemImage: "gearshape").tag(2)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(20)
+            Divider()
+            if selection == 0 {
+            Form {
+                Section {
+                    Picker("Theme", selection: appearance(\.themeChoiceID)) {
+                        ForEach(ThemeChoice.all) { Text($0.name).tag($0.id) }
+                    }
+                    Text(store.configuration.useSameAppearanceOnAllDisplays
+                         ? "Changes apply to your desktop automatically."
+                         : "Displays use individual themes. Enable shared appearance in Displays to apply these controls everywhere.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                Section("Lighting") {
+                    Toggle("Platter glow", isOn: appearance(\.platterGlow))
+                    SettingsSlider("Glow intensity", value: appearance(\.lightingIntensity), range: 0...1)
+                        .disabled(!store.configuration.globalAppearance.platterGlow)
+                }
+                Section("Track information") {
+                    Toggle("Show track information", isOn: Binding(
+                        get: { store.configuration.globalAppearance.nowPlaying != .hidden },
+                        set: { store.configuration.globalAppearance.nowPlaying = $0 ? .full : .hidden }
+                    ))
+                    SettingsSlider("Opacity", value: appearance(\.nowPlayingOpacity), range: 0.25...1)
+                        .disabled(store.configuration.globalAppearance.nowPlaying == .hidden)
+                    if store.configuration.globalAppearance.rendererTheme != .midnight {
+                        SettingsSlider("Size", value: appearance(\.nowPlayingScale), range: 0.65...1.4)
+                    }
+                }
+                if store.configuration.globalAppearance.rendererTheme != .midnight {
+                    Section("Composition") {
+                        Picker("Record colour", selection: appearance(\.vinyl)) {
+                            ForEach(VinylMaterial.allCases.filter { $0 != .custom }) { Text($0.name).tag($0) }
+                        }
+                        Picker("Layout", selection: appearance(\.layout)) {
+                            ForEach(LayoutMode.allCases) { Text($0.name).tag($0) }
+                        }
+                        Picker("Background", selection: appearance(\.background)) {
+                            ForEach(BackgroundStyle.allCases.filter { $0 != .customImage }) { Text($0.name).tag($0) }
+                        }
+                    }
+                }
+                Section {
+                    DisclosureGroup("Presets") {
+                        ForEach($store.presets) { $preset in
+                            HStack {
+                                TextField("Preset name", text: $preset.name)
+                                Button("Apply") { model.applyPreset(preset) }
+                                Button(role: .destructive) { store.presets.removeAll { $0.id == preset.id } } label: {
+                                    Image(systemName: "trash")
+                                }.help("Delete preset")
+                            }
+                        }
+                        Button("Save current appearance") {
+                            store.presets.append(.init(name: "My Preset \(store.presets.count + 1)", appearance: store.configuration.globalAppearance))
+                        }
+                    }
+                    Button("Reset appearance") { store.resetAppearance() }
+                }
+            }
+            } else if selection == 1 {
+
+            ScrollView {
+                DisplaySettings(model: model, store: store, displays: model.displayManager)
+                    .padding(24)
+            }
+            } else {
+
+            Form {
+                Section("Desktop") {
+                    Toggle("Show Vinyl on desktop", isOn: Binding(get: { model.isWallpaperEnabled }, set: { model.setWallpaperEnabled($0) }))
+                    Toggle("Show desktop on startup", isOn: $store.configuration.startEnabled)
+                    Toggle("Launch at login", isOn: $store.configuration.launchAtLogin)
+                    Toggle("Game Mode", isOn: Binding(get: { store.configuration.gameModeEnabled ?? false }, set: { store.configuration.gameModeEnabled = $0 }))
+                    Text("Game Mode keeps Vinyl in the current Space and out of full-screen apps.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                Section("Motion") {
+                    Toggle("Move tonearm", isOn: $store.configuration.animations.tonearmMovement)
+                    SettingsSlider("Park after pausing", value: $store.configuration.animations.idleDelay, range: 5...120, step: 1, format: { "\(Int($0)) sec" })
+                        .disabled(!store.configuration.animations.tonearmMovement)
+                    Toggle("Reduce motion", isOn: $store.configuration.animations.reduceMotionOverride)
+                    Text("The macOS Reduce Motion setting is also respected.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                Section("Spotify") {
+                    LabeledContent("Status", value: model.isSpotifyRunning ? "Spotify is running" : "Open Spotify to play music")
+                    Button("Refresh playback") { model.refresh() }.disabled(model.isRefreshing)
+                }
+                Section("Vinyl") {
+                    Text("A turntable for your Mac desktop.")
+                    LabeledContent("Settings", value: "⌘,")
+                    LabeledContent("Show or hide desktop", value: "⌘D")
+                    LabeledContent("Refresh playback", value: "⌘R")
+                }
+            }
+            }
+        }
+        .formStyle(.grouped)
+        .padding(.top, 8)
+        .frame(minWidth: 620, idealWidth: 680, minHeight: 620, idealHeight: 700)
+    }
+
+    private func appearance<T>(_ keyPath: WritableKeyPath<AppearanceConfiguration, T>) -> Binding<T> {
+        Binding(get: { store.configuration.globalAppearance[keyPath: keyPath] },
+                set: { store.configuration.globalAppearance[keyPath: keyPath] = $0 })
+    }
+}
+
+/// Keep the thumb and value local during a drag. Persist/apply once on release;
+/// keyboard and accessibility adjustments commit immediately.
+private struct SettingsSlider: View {
+    let title: String
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
     @Binding var value: Double
     let range: ClosedRange<Double>
     var step: Double = 0.01
@@ -610,6 +743,7 @@ private struct SettingsSlider: View {
     @State private var draft: Double = 0
     @State private var editing = false
 
+<<<<<<< HEAD
     init(
         _ title: String,
         detail: String,
@@ -692,10 +826,35 @@ private struct SettingsFooter: View {
                 .buttonStyle(.bordered)
         }
         .padding(.horizontal, 4)
+=======
+    init(_ title: String, value: Binding<Double>, range: ClosedRange<Double>, step: Double = 0.01,
+         format: @escaping (Double) -> String = { "\(Int(($0 * 100).rounded()))%" }) {
+        self.title = title; self._value = value; self.range = range; self.step = step; self.format = format
+    }
+
+    var body: some View {
+        LabeledContent(title) {
+            HStack(spacing: 12) {
+                Slider(value: Binding(get: { editing ? draft : value }, set: {
+                    draft = min(range.upperBound, max(range.lowerBound, ($0 / step).rounded() * step))
+                    if !editing { value = draft }
+                }), in: range, onEditingChanged: { active in
+                    if active { draft = value; editing = true }
+                    else { editing = false; value = draft }
+                })
+                .accessibilityLabel(title)
+                Text(format(editing ? draft : value))
+                    .monospacedDigit().foregroundStyle(.secondary)
+                    .frame(width: 64, alignment: .trailing)
+            }.frame(minWidth: 220, maxWidth: 310)
+        }
+        .onDisappear { if editing { value = draft; editing = false } }
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
     }
 }
 
 private struct DisplaySettings: View {
+<<<<<<< HEAD
     @ObservedObject var store: ConfigurationStore
     @ObservedObject var displays: DisplayManager
 
@@ -868,4 +1027,40 @@ private struct SettingsGlassModifier: ViewModifier {
                 }
         }
     }
+=======
+    @ObservedObject var model: AppModel
+    @ObservedObject var store: ConfigurationStore
+    @ObservedObject var displays: DisplayManager
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack { Text("Connected displays").font(.headline); Spacer(); Button("Identify Displays") { model.displayManager.identifyDisplays() } }
+            Toggle("Use same appearance on all displays", isOn: Binding(get: { store.configuration.useSameAppearanceOnAllDisplays }, set: { store.configuration.useSameAppearanceOnAllDisplays = $0 }))
+            ForEach(displays.displays) { display in
+                VStack(alignment: .leading, spacing: 9) {
+                    HStack {
+                        Image(systemName: display.isPortrait ? "rectangle.portrait" : "display")
+                        VStack(alignment: .leading) { Text(display.name).font(.headline); Text("\(display.resolution) · \(display.orientationName) · \(String(format: "%.1f×", display.scale))").font(.caption).foregroundStyle(.secondary) }
+                        Spacer()
+                        Toggle("Vinyl", isOn: enabledBinding(display.id)).toggleStyle(.switch)
+                    }
+                    if !store.configuration.useSameAppearanceOnAllDisplays {
+                        Picker("Theme", selection: displayThemeBinding(display.id)) { ForEach(ThemeChoice.all) { Text($0.name).tag($0.id) } }.frame(maxWidth: 340)
+                        if store.configuration.appearance(for: display.id).rendererTheme != .midnight {
+                            Picker("Layout", selection: displayLayoutBinding(display.id)) { ForEach(LayoutMode.allCases) { Text($0.name).tag($0) } }.frame(maxWidth: 340)
+                        }
+                    }
+                    SettingsSlider("Brightness", value: displayExposureBinding(display.id), range: -0.20...0.40, step: 0.01, format: { String(format: "%+.0f%%", $0 * 100) })
+                    Text("Lifts dark material detail for this display while protecting highlights.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }.padding(16).background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
+            }
+            Text("Disconnected display settings are retained and restored when the same display returns.").foregroundStyle(.secondary)
+        }
+    }
+    private func enabledBinding(_ id: String) -> Binding<Bool> { Binding(get: { store.configuration.displayConfigurations[id]?.enabled ?? true }, set: { store.ensureDisplay(id); store.configuration.displayConfigurations[id]?.enabled = $0 }) }
+    private func displayThemeBinding(_ id: String) -> Binding<String> { Binding(get: { store.configuration.displayConfigurations[id]?.appearance.themeChoiceID ?? store.configuration.globalAppearance.themeChoiceID }, set: { store.ensureDisplay(id); store.configuration.displayConfigurations[id]?.appearance.themeChoiceID = $0 }) }
+    private func displayLayoutBinding(_ id: String) -> Binding<LayoutMode> { Binding(get: { store.configuration.displayConfigurations[id]?.appearance.layout ?? .automatic }, set: { store.ensureDisplay(id); store.configuration.displayConfigurations[id]?.appearance.layout = $0 }) }
+    private func displayExposureBinding(_ id: String) -> Binding<Double> { Binding(get: { store.configuration.sceneExposure(for: id) }, set: { store.ensureDisplay(id); store.configuration.displayConfigurations[id]?.sceneExposure = $0 }) }
+    private func displayExposureLabel(_ id: String) -> String { String(format: "%+.0f%%", store.configuration.sceneExposure(for: id) * 100) }
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 }

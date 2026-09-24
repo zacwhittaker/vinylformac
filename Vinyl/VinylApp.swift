@@ -14,11 +14,20 @@ struct VinylApp: App {
     }
 
     var body: some Scene {
+<<<<<<< HEAD
         Window("Vinyl", id: "main") {
             VinylRootView()
+=======
+        Window("Vinyl Settings", id: "main") {
+            SettingsRootView()
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
                 .environmentObject(model)
         }
+<<<<<<< HEAD
         .defaultSize(width: 980, height: 740)
+=======
+        .defaultSize(width: 680, height: 700)
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
         .commands {
             CommandGroup(replacing: .appSettings) {
                 OpenVinylSettingsButton()
@@ -47,6 +56,10 @@ struct VinylApp: App {
 final class VinylAppDelegate: NSObject, NSApplicationDelegate {
     private var windowCloseObserver: NSObjectProtocol?
     private var instanceObserver: NSObjectProtocol?
+<<<<<<< HEAD
+=======
+    private static let hasLaunchedKey = "Vinyl.hasLaunchedBefore"
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Xcode and Finder can launch different builds of the same app. Keep
@@ -71,8 +84,12 @@ final class VinylAppDelegate: NSObject, NSApplicationDelegate {
                 other.terminate()
             }
         }
+<<<<<<< HEAD
         OnboardingProgress.prepare()
         let hasCompletedOnboarding = OnboardingProgress.isComplete()
+=======
+        let hasLaunched = UserDefaults.standard.bool(forKey: Self.hasLaunchedKey)
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
         if hasCompletedOnboarding {
             DispatchQueue.main.async {
@@ -107,6 +124,7 @@ final class VinylAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+<<<<<<< HEAD
 private struct VinylRootView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismissWindow) private var dismissWindow
@@ -131,6 +149,8 @@ private struct VinylRootView: View {
     }
 }
 
+=======
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 private struct OpenVinylSettingsButton: View {
     @Environment(\.openWindow) private var openWindow
     var body: some View {

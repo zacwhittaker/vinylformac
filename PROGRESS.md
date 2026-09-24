@@ -1,5 +1,15 @@
 # VinylForMac — current state and progress
 
+<<<<<<< HEAD
+### 2026-09-24 — Minimal native onboarding redesign
+
+- Request: redesign the six-step onboarding to match the supplied clean macOS reference: a flat unified window, quiet sidebar, minimal framing and almost no visible borders. Preserve the setup flow and keep license activation intentionally nonfunctional. No task ID available.
+- Starting state: clean checkout at `3d62ed4` (`Simplify download size note`). The existing onboarding is complete and resumable, but its blurred artwork backdrop, floating outer panel, shadows and outlined card treatment make it visually heavier than the requested reference. Owner: this task. Scope is `OnboardingView` presentation only; preserve lifecycle gating, saved choices, accessibility, wallpaper geometry/materials/motion, playback and entitlements.
+- Implemented: replaced the blurred Midnight cover, floating rounded shell, perimeter stroke and drop shadow with a flat native two-pane window. The sidebar now uses a quiet system background, compact coloured step glyphs and one soft selected row; the content pane uses smaller headings and borderless inset groups only for actual choices, input, summaries and toggles. Display choices are consolidated into one separator-based group. Welcome feature chips, the license field, Back control and navigation bar were simplified while preserving all copy and behavior.
+- Design decision: the supplied reference is used as a hierarchy and density model rather than copied literally. Vinyl retains its own logo and per-step accent colours as the identifying detail, while platform system colours keep the layout adaptive in light/dark appearance. No onboarding lifecycle, persistence, music-provider, theme/display configuration, wallpaper or entitlement code changed.
+- Verification: isolated unsigned Debug build passed at `/tmp/vinyl-minimal-onboarding-20260924`; `OnboardingProgressSmoke` and `git diff --check` passed. The isolated Debug preview was inspected at native 2× on Welcome, License and Displays: the window is flat and unified, control groups have no outline strokes, copy fits, two connected displays remain legible, and the focused license field communicates state through a subtle fill instead of a border. The preview process was stopped afterward. No normal Xcode-signed development app was rebuilt or left running; user approval remains pending.
+- Files: `Vinyl/Views/OnboardingView.swift`, `PROJECT_INDEX.md` and this handoff. Remaining: user review of the new visual direction; license activation still intentionally awaits the eventual provider and secure storage/recovery implementation.
+
 ### 2026-09-22 — First-launch onboarding and setup assistant
 
 - Request: research strong macOS onboarding patterns and build Vinyl's first-launch setup flow for license-key activation, music-player selection, preferred theme and display configuration. License activation should be fully designed but intentionally nonfunctional for now. The user has a downloaded DMG with a reference onboarding flow; exact filename is being confirmed. No task ID available.
@@ -73,6 +83,8 @@
 - References: Apple Liquid Glass guidance https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views ; Apple scripting dictionary guidance https://developer.apple.com/library/archive/documentation/LanguagesUtilities/Conceptual/MacAutomationScriptingGuide/AboutScriptingTerminology.html ; authoritative installed Music dictionary `/System/Applications/Music.app/Contents/Resources/com.apple.Music.sdef` supplies commands, raw artwork and `com.apple.Music.playback` / `com.apple.Music.library.read` access groups.
 
 
+=======
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 ### 2026-09-14 — Simplify settings and menu bar
 
 - Request: rebuild the overly complex settings UI, fix unreliable sliders, and make settings access clear in the menu bar. No task ID available.
@@ -267,6 +279,7 @@ Read AGENTS.md, this file, and PROJECT_INDEX.md. The app source is `/Users/zac/D
 
 ## Immediate handoff
 
+<<<<<<< HEAD
 - Latest change: Appearance now has a responsive three-column theme gallery. Midnight is selected; numbered Theme 02–06 placeholders are visibly locked and cannot change configuration. Isolated Debug build, diff check and light/dark 2× content inspection passed. Live settings review remains pending.
 - Latest change: manual refresh controls removed from menu bar/settings and the app menu (including ⌘R); automatic playback synchronization is unchanged. Isolated Debug build and diff check passed; live replacement pending.
 
@@ -274,6 +287,12 @@ Read AGENTS.md, this file, and PROJECT_INDEX.md. The app source is `/Users/zac/D
 - Final isolated Debug build, preset/source migration, existing theme compatibility, Music metadata/script compilation, fake-provider source-switch and shared artwork-cache checks passed. Settings content renders inspected in light/dark and at minimum size; live Music and native glass interaction require the signed app.
 - Xcode computer control unavailable; live development app not replaced. Next: Xcode Stop/Build/Run, allow selected-player Automation, review Music library/stream artwork and real playback/switching on physical displays.
 - Midnight geometry, materials and motion are unchanged. Future material themes follow THEME_AUTHORING.md; unfinished legacy choices are no longer exposed.
+=======
+- Current task: simplified settings and menu bar, implemented on the approved shared Midnight baseline. Three sections, explicit Settings… access, directly observed configuration, and sliders that apply once per drag.
+- Isolated unsigned Debug build and configuration compatibility smoke passed. Settings content inspected at 2×; native navigation/menu and real interaction still need live review. User acceptance pending.
+- Xcode computer control is unavailable in this session; live development app has not been replaced. Next step: Stop/Build/Run through Xcode and verify menu access and slider interactions on real displays.
+- Theme authoring continues to follow THEME_AUTHORING.md; no shared physical renderer, geometry, material, motion timing or Spotify code changes in this task.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
 ## Baseline and audit coverage
 
@@ -289,7 +308,11 @@ Read AGENTS.md, this file, and PROJECT_INDEX.md. The app source is `/Users/zac/D
 
 Native macOS Spotify wallpaper companion, built with SwiftUI, AppKit, Core Animation and Metal. Bundle ID `me.shivs.vinyl`. Xcode project `Vinyl.xcodeproj`, scheme `Vinyl`, Swift language mode 5.0, macOS deployment target 14.0. README specifies Xcode 26+; this machine's builds used Xcode-beta with macOS 27 SDK. Marketing version 0.1.1, build 2 in project settings.
 
+<<<<<<< HEAD
 The app uses the selected player’s local scripting dictionary and distributed playback notifications. Spotify is the default; initial Music.app support is implemented with separate metadata/artwork scripts and shared playback presentation. The selected app must be running and Automation access allowed. No Spotify login, Web API token or MusicKit developer key is required. Live Apple Music validation remains pending.
+=======
+The app uses Spotify's local scripting dictionary and distributed playback notifications. Spotify must be installed/running and Automation access allowed. No Spotify account login, Web API token, or developer key is required. Apple Music exists as a source enum only; no implementation.
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 
 Git history records local playback migration (`936c65a`), artwork/release v0.1.1 (`46cb8a0`), and a notarized Developer ID release (`90aaa26`). These are historical repository records, not fresh verification of the downloadable binary. Website files are under `docs/`; CNAME is `vinyl.shivs.me`; download points to the GitHub latest `Vinyl.dmg`; website currently says 13 MB. Distribution options use manual Developer ID export. No release/website publishing occurred in this task.
 
@@ -314,8 +337,13 @@ Privacy: sandbox enabled, outgoing network enabled, Spotify Automation/temporary
 | Progress/text | `PlaybackProgressBar.swift`: small native animated fill; `PlaybackTextSchedule.swift`: next playback-second boundary with 8 ms allowance, no paused/hidden tick loop. |
 | Animation model | `PlaybackAnimationCoordinator.swift` classifies lifecycle/track/seek changes with cancellable convergence. Do not assume every configuration flag/state is wired into every render path. |
 | Configuration | Codable UserDefaults at `Vinyl.configuration.v2`, presets at `Vinyl.presets.v1`, schema version 2; display settings keyed by CG display ID; shared or separate appearance, independent per-display exposure. Preserve saved configuration. |
+<<<<<<< HEAD
 | Settings | Appearance, Displays and General; native glass navigation and material fallback, Midnight only, local-draft numeric sliders, source picker/status. Compact menu provides status, desktop toggle, Settings… (⌘,), music player and quit; no manual refresh controls. |
 | Themes/setups | Material-only TurntableThemeCatalog (Midnight default) plus retained legacy enum values for decoding; one shipped Midnight preset and no exposed legacy choices. `VinylSetup.catalogue` exposes Turntable (`albumCanvas` ID) and unavailable placeholders. Theme choices and setup availability are different concepts. |
+=======
+| Settings | Appearance, Displays and General via explicit segmented navigation. Renderer-aware controls, collapsed presets, local-draft numeric sliders. Compact menu provides status, desktop toggle, Settings… (⌘,), refresh and quit. |
+| Themes/setups | Material-only TurntableThemeCatalog (Midnight default) plus fifteen retained legacy enum values and five shipped presets. `VinylSetup.catalogue` exposes Turntable (`albumCanvas` ID) and unavailable placeholders. Theme choices and setup availability are different concepts. |
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 | Legacy rendering | `AlbumCanvasWallpaperView.swift`, `SmoothRecordRotation.swift`, and portions of `ContentView.swift` preserve earlier flows. Active wallpaper goes through ModernWallpaperView; do not mistake legacy wood surfaces for the current background. |
 | Website | Static landing and privacy HTML; no package-based frontend or Sites hosting configuration found. Do not introduce a site framework for app work. |
 

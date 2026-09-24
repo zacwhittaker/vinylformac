@@ -26,7 +26,13 @@ struct ThemeChoice: Identifiable {
 
     static var all: [ThemeChoice] {
         TurntableThemeCatalog.all.map { .init(id:"turntable." + $0.id,name:$0.name,family:"Turntable") }
+<<<<<<< HEAD
 
+=======
+        + VinylTheme.allCases.filter { $0 != .midnight }.map {
+            .init(id:"legacy." + $0.rawValue,name:$0.name,family:$0.family)
+        }
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
     }
 }
 

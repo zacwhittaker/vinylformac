@@ -1,5 +1,6 @@
 import Foundation
 
+<<<<<<< HEAD
 enum MusicPlayer: String, Codable, CaseIterable, Identifiable {
     case spotify, appleMusic
     var id: String { rawValue }
@@ -7,6 +8,8 @@ enum MusicPlayer: String, Codable, CaseIterable, Identifiable {
     var bundleIdentifier: String { self == .spotify ? "com.spotify.client" : "com.apple.Music" }
 }
 
+=======
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
 enum VinylTheme: String, Codable, CaseIterable, Identifiable {
     case midnight, aurora, studio, porcelain, obsidian, transparent
     case hiFi, tokyo, technics, y2k, seventies, braun, walnut, cream, gramophone
@@ -133,11 +136,14 @@ struct AnimationConfiguration: Codable, Equatable {
 struct AppConfiguration: Codable, Equatable {
     static let currentSchema = 2
     var schemaVersion = currentSchema
+<<<<<<< HEAD
     var selectedMusicPlayer: MusicPlayer? = nil
     var musicPlayer: MusicPlayer {
         get { selectedMusicPlayer ?? .spotify }
         set { selectedMusicPlayer = newValue }
     }
+=======
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
     var globalAppearance = AppearanceConfiguration()
     var displayConfigurations: [String: DisplayConfiguration] = [:]
     var useSameAppearanceOnAllDisplays = true
@@ -160,7 +166,10 @@ struct AppConfiguration: Codable, Equatable {
     /// Retains display enablement, exposure, animation and window-policy checks.
     func differsOnlyInAppearance(from next: AppConfiguration) -> Bool {
         var normalized = self
+<<<<<<< HEAD
         normalized.selectedMusicPlayer = next.selectedMusicPlayer
+=======
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
         normalized.globalAppearance = next.globalAppearance
         normalized.useSameAppearanceOnAllDisplays = next.useSameAppearanceOnAllDisplays
         for id in normalized.displayConfigurations.keys {
@@ -186,7 +195,15 @@ struct AppearancePreset: Codable, Equatable, Identifiable {
     var appearance: AppearanceConfiguration
 
     static let shipped: [AppearancePreset] = [
+<<<<<<< HEAD
         .init(id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!, name: "Midnight", appearance: .init())
+=======
+        .init(name: "Minimal Dark", appearance: .init()),
+        .init(name: "Warm Vintage", appearance: .init(theme: .walnut, vinyl: .black, lighting: .warm, lightingIntensity: 0.55, background: .gradient, nowPlaying: .full)),
+        .init(name: "Clean Studio", appearance: .init(theme: .studio, vinyl: .black, lighting: .white, lightingIntensity: 0.3, background: .solidColour, nowPlaying: .minimal)),
+        .init(name: "Colour Pop", appearance: .init(theme: .aurora, vinyl: .albumColour, lighting: .albumReactive, lightingIntensity: 0.7, background: .albumColours, nowPlaying: .floating)),
+        .init(name: "Transparent", appearance: .init(theme: .transparent, vinyl: .smoke, lighting: .white, lightingIntensity: 0.35, background: .pureBlack, nowPlaying: .minimal))
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
     ]
 }
 
@@ -211,6 +228,7 @@ final class ConfigurationStore: ObservableObject {
             }
             configuration = migrated
         }
+<<<<<<< HEAD
         // Retire the unfinished presets and theme selections without losing
         // display calibration, enabled displays, motion or Midnight adjustments.
         presets = AppearancePreset.shipped
@@ -224,6 +242,14 @@ final class ConfigurationStore: ObservableObject {
         }
         save()
         savePresets()
+=======
+        if let data = defaults.data(forKey: presetsKey),
+           let decoded = try? JSONDecoder().decode([AppearancePreset].self, from: data) {
+            presets = decoded
+        } else {
+            presets = AppearancePreset.shipped
+        }
+>>>>>>> 10bb768fe8843589f7fb9f1375d2e6e8eaec9fb6
     }
 
     func ensureDisplay(_ id: String) {
